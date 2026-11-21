@@ -1,4 +1,4 @@
-# Dominó Acessível (Android)
+# Dominó G (Android)
 
 Jogo de dominó nativo (Kotlin + Jetpack Compose), para quem enxerga e adaptado para pessoas cegas
 (voz própria do app, sons de pedra e suporte ao TalkBack).

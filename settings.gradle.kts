@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "Dominog"
+rootProject.name = "DominoG"
 include(":app")

@@ -9,6 +9,7 @@ import com.geofilho.dominog.ui.AppViewModel
 import com.geofilho.dominog.ui.BluetoothScreen
 import com.geofilho.dominog.ui.DominoTheme
 import com.geofilho.dominog.ui.GameScreen
+import com.geofilho.dominog.ui.HelpScreen
 import com.geofilho.dominog.ui.MenuScreen
 import com.geofilho.dominog.ui.Screen
 
@@ -24,6 +25,7 @@ class MainActivity : ComponentActivity() {
                     Screen.MENU -> MenuScreen(vm)
                     Screen.BLUETOOTH -> BluetoothScreen(vm)
                     Screen.GAME -> GameScreen(vm)
+                    Screen.HELP -> HelpScreen(vm)
                 }
             }
         }

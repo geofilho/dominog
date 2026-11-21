@@ -23,7 +23,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class Screen { MENU, BLUETOOTH, GAME }
+enum class Screen { MENU, BLUETOOTH, GAME, HELP }
 enum class Mode { CPU, LOCAL, BT_HOST, BT_GUEST }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -100,6 +100,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun startCpu() { mode = Mode.CPU; newMatch() }
     fun startLocal() { mode = Mode.LOCAL; newMatch() }
     fun openBluetooth() { screen = Screen.BLUETOOTH; lobbyMessage = null }
+    fun openHelp() { screen = Screen.HELP }
 
     fun backToMenu() {
         cpuJob?.cancel()

@@ -44,13 +44,14 @@ fun MenuScreen(vm: AppViewModel) {
         }
         Spacer(Modifier.height(16.dp))
         Text(
-            "Dominó Acessível", fontSize = 36.sp, fontWeight = FontWeight.Bold,
+            "Dominó G", fontSize = 40.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.semantics { heading() },
         )
         Spacer(Modifier.height(36.dp))
         MenuButton("Jogar contra o computador", Palette.Start) { vm.startCpu() }
-        MenuButton("Jogar via Bluetooth", Palette.Action) { vm.openBluetooth() }
-        MenuButton("Dois jogadores no mesmo aparelho", Palette.Action) { vm.startLocal() }
+        MenuButton("Jogar pelo Bluetooth", Palette.Action) { vm.openBluetooth() }
+        MenuButton("Jogar com um parceiro no mesmo aparelho", Palette.Action) { vm.startLocal() }
+        MenuButton("Como usar", Palette.AreaBorder) { vm.openHelp() }
     }
 }
 
