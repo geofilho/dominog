@@ -17,6 +17,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -48,8 +50,13 @@ jobs:
           ./gradlew --no-daemon testDebugUnitTest assembleRelease
           cp app/build/outputs/apk/release/app-release.apk DominoG.apk
           echo "$GITHUB_RUN_NUMBER" > version.txt
-          # Novidades = mensagem do último commit, sem as linhas de assinatura
-          git log -1 --pretty=%B | grep -v -E '^(Co-Authored-By|Claude-Session):' | sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' > novidades.txt
+          # Novidades = todas as mudanças desde a versão publicada anterior (sem ajustes internos "Build:")
+          PREV=$(curl -sfL https://github.com/${{ github.repository }}/releases/download/ultima-versao/commit.txt || true)
+          if [ -n "$PREV" ] && git cat-file -e "$PREV^{commit}" 2>/dev/null; then RANGE="$PREV..HEAD"; else RANGE="-1"; fi
+          git log $RANGE --no-merges --invert-grep --grep='^Build:' --pretty='%B' \
+            | grep -v -E '^(Co-Authored-By|Claude-Session):' | cat -s > novidades.txt
+          [ -s novidades.txt ] || echo "Melhorias internas." > novidades.txt
+          git rev-parse HEAD > commit.txt
       - uses: actions/upload-artifact@v4
         with:
           name: DominoG-apk
@@ -67,3 +74,4 @@ jobs:
             DominoG.apk
             version.txt
             novidades.txt
+            commit.txt
