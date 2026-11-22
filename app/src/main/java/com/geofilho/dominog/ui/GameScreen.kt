@@ -197,8 +197,14 @@ fun GameScreen(vm: AppViewModel) {
             val c = choosing
             if (c != null && res == null) SideChooser(r, c, v, onPick = { s -> choosing = null; vm.play(c, s) }, onCancel = { choosing = null })
             if (res == null && !vm.shuffling && vm.canAct()) {
-                if (r.canDraw(me)) ActionButton("Comprar Pedra") { vm.draw() }
-                if (r.mustPass(me)) ActionButton("Passar Vez") { vm.pass() }
+                // Quando aparece, o foco do TalkBack vai direto para o botão (depois do aviso falado).
+                val actionFocus = remember { FocusRequester() }
+                val seenAction = remember { vm.actionFocus }
+                if (r.canDraw(me)) ActionButton("Comprar pedra", Modifier.focusRequester(actionFocus)) { vm.draw() }
+                if (r.mustPass(me)) ActionButton("Passar vez", Modifier.focusRequester(actionFocus)) { vm.pass() }
+                LaunchedEffect(vm.actionFocus) {
+                    if (vm.actionFocus != seenAction) runCatching { actionFocus.requestFocus() }
+                }
             }
         }
 
@@ -346,6 +352,10 @@ private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") 
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text(
+            "${if (vm.matchOver) "Placar final" else "Placar"}: ${vm.placarText()}",
+            fontSize = 17.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp),
+        )
         if (vm.matchOver) {
             Text(
                 "🏆 ${vm.nameOf(vm.matchWinner)} venceu a partida! ${maxOf(vm.scores[0], vm.scores[1])} a ${minOf(vm.scores[0], vm.scores[1])}",
@@ -380,12 +390,12 @@ private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") 
 }
 
 @Composable
-private fun ActionButton(label: String, onClick: () -> Unit) {
+private fun ActionButton(label: String, modifier: Modifier = Modifier, onClick: () -> Unit) {
     Button(
         onClick = onClick,
         colors = ButtonDefaults.buttonColors(containerColor = Palette.Action, contentColor = Color.White),
         shape = RoundedCornerShape(8.dp),
-        modifier = Modifier.padding(top = 10.dp).heightIn(min = 56.dp),
+        modifier = modifier.padding(top = 10.dp).heightIn(min = 56.dp),
     ) { Text(label, fontSize = 18.sp) }
 }
 

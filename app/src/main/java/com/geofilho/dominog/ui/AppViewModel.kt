@@ -215,10 +215,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         voice.stop()
         sfx.playOpen()
         bump()
-        val text = "Mostrando pedras." + (if (r != null) hintFor(r, r.current) else "")
+        val hint = if (r != null) hintFor(r, r.current) else ""
+        val text = "Mostrando pedras.$hint"
         status = text
         // A voz entra logo depois do som de abrir.
-        if (partnerVoiceOn) viewModelScope.launch { delay(550); voice.speak(text, flush = true) }
+        viewModelScope.launch {
+            delay(550)
+            if (partnerVoiceOn) voice.speak(text, flush = true)
+            if (hint.isNotEmpty()) focusActionAfterSpeech()
+        }
     }
 
     /**
@@ -318,7 +323,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             else sb.append("${spokenName(p)} comprou. ")
         }
         if (r.consecutivePasses > before.passes) sb.append("${spokenName(before.current)} passou. ")
+        // Comprou e continua sem pedra que encaixe: avisa de novo e leva o foco ao botão.
+        val myTurnNow = !r.isOver && r.current == me && (mode != Mode.LOCAL || revealed)
+        val hint = if (!turnChanged && myTurnNow) hintFor(r, me) else ""
+        sb.append(hint)
         say(sb.toString(), flush = true)
+        if (hint.isNotEmpty()) focusActionAfterSpeech()
 
         if (r.isOver && !before.over) announceResult(r)
         else if (turnChanged) announceTurn(r, newRound = false)
@@ -347,7 +357,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         val mine = p == me
-        say(text + if (mine) "." + hintFor(r, p) else "")
+        val hint = if (mine) hintFor(r, p) else ""
+        say(text + if (mine) ".$hint" else "")
+        if (hint.isNotEmpty()) focusActionAfterSpeech()
     }
 
     /** Partida = melhor de 5: vence quem ganhar [WINS_TO_MATCH] rodadas primeiro. */
@@ -373,10 +385,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val hi = maxOf(scores[0], scores[1]); val lo = minOf(scores[0], scores[1])
         if (matchOver) {
             val w = matchWinner
-            sb.append(if (mode != Mode.LOCAL && w == me) "Você venceu a partida por $hi a $lo!" else "${spokenName(w)} venceu a partida por $hi a $lo.")
-        } else {
-            sb.append("Placar: ${spokenName(0)} ${scores[0]}, ${spokenName(1)} ${scores[1]}.")
+            sb.append(if (mode != Mode.LOCAL && w == me) "Você venceu a partida por $hi a $lo! " else "${spokenName(w)} venceu a partida por $hi a $lo. ")
         }
+        // Sempre termina com o placar.
+        sb.append("${if (matchOver) "Placar final" else "Placar"}: ${placarText()}.")
         say(sb.toString())
         bump()
     }
@@ -503,6 +515,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         return sides
     }
+
+    /** "Você 2, Computador 1" (falado/mostrado no fim da rodada). */
+    fun placarText(): String = "${spokenName(0)} ${scores[0]}, ${spokenName(1)} ${scores[1]}"
+
+    /** Incrementa quando o foco do TalkBack deve ir para o botão Comprar pedra / Passar vez. */
+    var actionFocus by mutableIntStateOf(0); private set
+
+    /** Depois que a voz terminar o aviso, leva o foco ao botão de comprar/passar. */
+    private fun focusActionAfterSpeech() = voice.afterQueue { actionFocus++ }
 
     private fun hintFor(r: Round, p: Int): String = when {
         r.isOver || r.board.isEmpty() || r.playable(p).isNotEmpty() -> ""
