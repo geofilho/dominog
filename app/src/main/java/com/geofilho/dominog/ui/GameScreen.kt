@@ -44,13 +44,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -85,20 +82,17 @@ fun GameScreen(vm: AppViewModel) {
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Cabeçalho: voltar + placar
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = { vm.backToMenu() }) { Text("Menu") }
-            Spacer(Modifier.weight(1f))
-            Text(
-                "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.semantics {
-                    contentDescription = "Placar: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
-                },
-            )
-        }
+        // 1) Placar
+        Text(
+            "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
+            fontWeight = FontWeight.Bold,
+            fontSize = 18.sp,
+            modifier = Modifier.semantics {
+                contentDescription = "Placar: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
+            },
+        )
         Spacer(Modifier.height(6.dp))
-        // Linha de status (amarela, como no modelo); TalkBack lê as mudanças.
+        // Linha de status amarela (só visual: a voz do app já fala tudo, o TalkBack não repete).
         Text(
             vm.status,
             color = Palette.Status,
@@ -107,21 +101,19 @@ fun GameScreen(vm: AppViewModel) {
             modifier = Modifier
                 .fillMaxWidth()
                 .heightIn(min = 40.dp)
-                .semantics { liveRegion = LiveRegionMode.Polite },
+                .clearAndSetSemantics { },
         )
 
-        // ---- Área do adversário ----
-        Area(vm.nameOf(opp)) {
-            val n = r.hands[opp].size
-            Row(
-                Modifier.clearAndSetSemantics { contentDescription = "${vm.nameOf(opp)}: $n pedras restantes" },
-                horizontalArrangement = Arrangement.spacedBy(3.dp),
-            ) { repeat(minOf(n, 12)) { DominoTile(0, 0, vertical = true, unit = 16.dp, faceDown = true) } }
-            Text("$n pedras restantes  ·  Monte: ${r.boneyard.size}", fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
-        }
-
-        // ---- Mesa ----
-        Area("Mesa") {
+        // 2) Mesa: resumo das pontas  3) cada pedra da mesa
+        Area("Mesa", spokenTitle = false) {
+            Text(
+                if (r.board.isEmpty()) "Vazia"
+                else "Ponta esquerda ${r.leftEnd}  ·  Ponta direita ${r.rightEnd}",
+                fontSize = 15.sp,
+                modifier = Modifier
+                    .padding(bottom = 6.dp)
+                    .clearAndSetSemantics { contentDescription = vm.boardSummary(r) },
+            )
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -135,11 +127,30 @@ fun GameScreen(vm: AppViewModel) {
             }
         }
 
-        // ---- Minhas pedras ----
+        // 4) Adversário  5) Monte
+        Area(vm.nameOf(opp), spokenTitle = false) {
+            val n = r.hands[opp].size
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = "${vm.nameOf(opp)}, ${vm.pedras(n)} restantes" },
+            ) {
+                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    repeat(minOf(n, 12)) { DominoTile(0, 0, vertical = true, unit = 16.dp, faceDown = true) }
+                }
+                Text("${vm.pedras(n)} restantes", fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
+            }
+            Text(
+                "Monte: ${vm.pedras(r.boneyard.size)}", fontSize = 14.sp,
+                modifier = Modifier
+                    .padding(top = 6.dp)
+                    .clearAndSetSemantics { contentDescription = "Monte, ${vm.pedras(r.boneyard.size)}" },
+            )
+        }
+
+        // 6) Suas pedras  7) cada pedra
         val handTitle = when (vm.mode) {
             Mode.LOCAL -> "Pedras do ${vm.nameOf(me)}"
-            Mode.CPU -> "Suas Pedras"
-            else -> "Suas Pedras (${vm.nameOf(me)})"
+            else -> "Suas pedras"
         }
         Area(handTitle) {
             val res = r.result
@@ -157,15 +168,18 @@ fun GameScreen(vm: AppViewModel) {
             }
         }
 
-        OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)) {
-            Text("Ouvir mesa e pedras")
+        OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 4.dp)) {
+            Text("Ouvir mesa")
+        }
+        OutlinedButton(onClick = { vm.backToMenu() }, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)) {
+            Text("Sair do jogo")
         }
     }
 }
 
 /** Caixa com borda tracejada, como as ".area" do modelo. */
 @Composable
-private fun Area(title: String, content: @Composable () -> Unit) {
+private fun Area(title: String, spokenTitle: Boolean = true, content: @Composable () -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -174,7 +188,10 @@ private fun Area(title: String, content: @Composable () -> Unit) {
             .padding(14.dp),
     ) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(title, fontSize = 18.sp, fontWeight = FontWeight.Bold, modifier = Modifier.semantics { heading() })
+            Text(
+                title, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                modifier = if (spokenTitle) Modifier.semantics { heading() } else Modifier.clearAndSetSemantics { },
+            )
             Spacer(Modifier.height(8.dp))
             content()
         }
@@ -188,28 +205,27 @@ private fun Modifier.dashedBorder(): Modifier = drawBehind {
 
 @Composable
 private fun Board(r: Round) {
-    if (r.board.isEmpty()) {
-        Text("Vazia", color = Color.White)
-        return
-    }
+    if (r.board.isEmpty()) return
     val scroll = rememberScrollState()
     // Mantém visível a ponta onde a última pedra foi jogada.
     LaunchedEffect(r.board.size) {
         if (r.lastMove?.side == Side.LEFT) scroll.animateScrollTo(0) else scroll.animateScrollTo(scroll.maxValue)
     }
-    val desc = "Mesa: " + r.board.joinToString(", ") { "${Words.n(it.left)} e ${Words.n(it.right)}" } +
-        ". Ponta esquerda ${Words.n(r.leftEnd!!)}, ponta direita ${Words.n(r.rightEnd!!)}"
     Row(
         Modifier
             .fillMaxWidth()
             .horizontalScroll(scroll)
-            .padding(12.dp)
-            .clearAndSetSemantics { contentDescription = desc },
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         r.board.forEach { p ->
-            DominoTile(p.left, p.right, vertical = p.tile.isDouble, unit = 30.dp)
+            DominoTile(
+                p.left, p.right, vertical = p.tile.isDouble, unit = 30.dp,
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = if (p.tile.isDouble) Words.tile(p.tile) else "${Words.n(p.left)} e ${Words.n(p.right)}"
+                },
+            )
         }
     }
 }
@@ -217,21 +233,17 @@ private fun Board(r: Round) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Hand(vm: AppViewModel, r: Round, me: Int, onChoose: (Tile) -> Unit) {
-    val myTurn = vm.canAct()
-    val playable = if (myTurn) r.playable(me).toSet() else emptySet()
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.fillMaxWidth(),
     ) {
         r.hands[me].forEach { t ->
-            val ok = t in playable
             DominoTile(
-                t.b, t.a, vertical = true, unit = 38.dp, highlight = ok,
+                t.b, t.a, vertical = true, unit = 38.dp,
                 modifier = Modifier
-                    .graphicsLayer { alpha = if (!myTurn || ok) 1f else 0.6f }
                     .semantics {
-                        contentDescription = "Pedra ${Words.tile(t)}" + if (ok) ", encaixa" else ""
+                        contentDescription = "Pedra ${Words.tile(t)}"
                         role = Role.Button
                     }
                     .clickable { if (vm.tapTile(t).size > 1) onChoose(t) },

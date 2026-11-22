@@ -126,14 +126,9 @@ class Round private constructor(
             val h1 = deck.subList(7, 14).toMutableList()
             val bone = deck.subList(14, 28).toMutableList()
             val hands = listOf(h0, h1)
-            var opening: Tile? = null
-            val starter = if (starterOverride != null) starterOverride else {
-                // Primeira rodada: sai quem tem a carroça mais alta (ou a pedra mais alta).
-                val best = (h0 + h1).maxBy { (if (it.isDouble) 100 else 0) + it.pips * 7 + it.b }
-                opening = best
-                if (h0.contains(best)) 0 else 1
-            }
-            return Round(hands, ArrayDeque(), bone, starter, opening, 0, null)
+            // Primeira rodada: quem começa é sorteado e joga a pedra que quiser.
+            val starter = starterOverride ?: random.nextInt(2)
+            return Round(hands, ArrayDeque(), bone, starter, null, 0, null)
         }
 
         private fun ids(s: String) = if (s.isEmpty()) mutableListOf() else s.split(',').map { Tile.byId(it.toInt()) }.toMutableList()

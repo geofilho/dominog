@@ -11,13 +11,14 @@ class RoundTest {
         assertEquals(28, Tile.ALL.map { it.id }.toSet().size)
     }
 
-    @Test fun firstRoundStartsWithHighestDouble() {
-        repeat(200) { seed ->
+    @Test fun firstRoundStarterIsRandomAndFree() {
+        val starters = IntArray(2)
+        repeat(400) { seed ->
             val r = Round.deal(null, Random(seed))
-            val opening = r.openingTile!!
-            assertTrue(r.hands[r.current].contains(opening))
-            assertEquals(listOf(opening), r.playable(r.current))
+            starters[r.current]++
+            assertEquals(r.hands[r.current], r.playable(r.current))
         }
+        assertTrue(starters[0] > 120 && starters[1] > 120)
     }
 
     @Test fun aiVsAiGamesAlwaysFinishConsistently() {

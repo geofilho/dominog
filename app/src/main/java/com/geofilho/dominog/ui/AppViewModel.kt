@@ -264,9 +264,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             else -> if (p == me) "Sua vez" else if (newRound) "${nameOf(p)} começa" else ""
         }
         val mine = mode == Mode.LOCAL || p == me
-        if (newRound && r.openingTile != null && mine) {
-            say("$text. Comece com ${Words.tile(r.openingTile!!)}")
-        } else if (mine && mode == Mode.LOCAL) {
+        if (mine && mode == Mode.LOCAL) {
             say(text) // a dica de compra só é dita depois de mostrar as pedras
         } else say(text + if (mine) "." + hintFor(r, p) else "")
     }
@@ -285,22 +283,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         bump()
     }
 
-    /** Lê a mesa e a mão para quem não está vendo a tela. */
+    /** Botão "Ouvir mesa": mesa, pontas e quantas pedras o adversário tem. */
     fun describe() {
         val r = round ?: return
-        val sb = StringBuilder()
-        if (r.board.isEmpty()) sb.append("Mesa vazia. ")
-        else sb.append("Mesa com ${r.board.size} pedras. Ponta esquerda ${Words.n(r.leftEnd!!)}, ponta direita ${Words.n(r.rightEnd!!)}. ")
-        val showHand = mode != Mode.LOCAL || revealed
-        if (showHand) {
-            sb.append("Suas pedras: ")
-            sb.append(r.hands[me].joinToString(", ") { Words.tile(it) }).append(". ")
-        }
-        val opp = if (mode == Mode.LOCAL) 1 - r.current else 1 - me
-        sb.append("${spokenName(opp)} tem ${r.hands[opp].size} pedras. Monte com ${r.boneyard.size}. ")
-        sb.append("Placar: ${spokenName(0)} ${scores[0]}, ${spokenName(1)} ${scores[1]}.")
-        say(sb.toString(), flush = true)
+        val opp = 1 - me
+        say("${boardSummary(r)}. ${spokenName(opp)} tem ${pedras(r.hands[opp].size)}.", flush = true)
     }
+
+    fun boardSummary(r: Round): String =
+        if (r.board.isEmpty()) "Mesa vazia"
+        else "Mesa com ${pedras(r.board.size)}, ponta esquerda ${Words.n(r.leftEnd!!)}, ponta direita ${Words.n(r.rightEnd!!)}"
+
+    fun pedras(n: Int) = if (n == 1) "1 pedra" else "$n pedras"
 
     private fun bump() { version++ }
 
