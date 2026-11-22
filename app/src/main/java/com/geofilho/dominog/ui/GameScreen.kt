@@ -93,65 +93,64 @@ fun GameScreen(vm: AppViewModel) {
     }
     if (choosing != null && (!vm.canAct() || choosing !in r.hands[me])) choosing = null
 
+    // Diálogo de comprar/passar (com leitor de tela): o foco do TalkBack vai direto para o botão.
+    if (vm.askDraw && r.result == null && vm.canAct() && (r.canDraw(me) || r.mustPass(me))) {
+        DrawDialog(vm, r, me)
+    }
+
+    // A tela cabe inteira, sem rolar: mesa e mão ficam em áreas próprias.
+    // Só a área de baixo (suas pedras / fim da rodada) rola, se precisar.
     Column(
         Modifier
             .fillMaxSize()
             .background(Palette.Bg)
             .safeDrawingPadding()
-            .verticalScroll(rememberScrollState())
             .semantics { isTraversalGroup = true }
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Placar. Não há botão de sair na tela: para sair, use o Voltar do Android
-        // (botão, gesto ou gesto do TalkBack), que pergunta antes.
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            // Tocar no placar mostra e fala o histórico de partidas.
-            Text(
-                "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .clickable(onClickLabel = "ouvir o histórico") { showHistory = true; vm.speakHistory() }
-                    .padding(6.dp)
-                    .semantics {
-                        contentDescription = "Placar, melhor de 5: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
-                        role = Role.Button
-                    },
-            )
-        }
-        Spacer(Modifier.height(6.dp))
+        // 1) Placar (tocar mostra e fala o histórico). Sem botão de sair: use o Voltar do Android.
+        Text(
+            "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
+            fontWeight = FontWeight.Bold,
+            fontSize = 17.sp,
+            modifier = Modifier
+                .clip(RoundedCornerShape(6.dp))
+                .clickable(onClickLabel = "ouvir o histórico") { showHistory = true; vm.speakHistory() }
+                .padding(4.dp)
+                .semantics {
+                    contentDescription = "Placar, melhor de 5: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
+                    role = Role.Button
+                },
+        )
         // Linha de status amarela (só visual: a voz do app já fala tudo, o TalkBack não repete).
         Text(
             vm.status,
             color = Palette.Status,
             fontStyle = FontStyle.Italic,
             textAlign = TextAlign.Center,
+            fontSize = 14.sp,
+            maxLines = 2,
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 40.dp)
+                .heightIn(min = 36.dp)
                 .clearAndSetSemantics { },
         )
 
-        // 2) Mesa: resumo das pontas  3) cada pedra da mesa
+        // 2) Mesa: resumo das pontas  3) cada pedra da mesa (fileira que rola para o lado)
         Area("Mesa", spokenTitle = false) {
             Text(
                 if (r.board.isEmpty()) "Vazia"
                 else "Ponta esquerda ${r.leftEnd}  ·  Ponta direita ${r.rightEnd}",
                 fontSize = 15.sp,
                 modifier = Modifier
-                    .padding(bottom = 6.dp)
+                    .padding(bottom = 4.dp)
                     .clearAndSetSemantics { contentDescription = vm.boardSummary(r) },
             )
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 96.dp)
+                    .height(84.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(Palette.Felt),
                 contentAlignment = Alignment.Center,
@@ -161,79 +160,120 @@ fun GameScreen(vm: AppViewModel) {
             }
         }
 
-        // 4) Adversário  5) Monte
-        Area(vm.nameOf(opp), spokenTitle = false) {
-            val n = r.hands[opp].size
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
+        // 4) Adversário  5) Monte (uma linha só)
+        val n = r.hands[opp].size
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.clearAndSetSemantics { contentDescription = "${vm.nameOf(opp)}, ${vm.pedras(n)} restantes" },
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                    repeat(minOf(n, 12)) { DominoTile(0, 0, vertical = true, unit = 16.dp, faceDown = true) }
-                }
-                Text("${vm.pedras(n)} restantes", fontSize = 14.sp, modifier = Modifier.padding(top = 6.dp))
+                DominoTile(0, 0, vertical = true, unit = 12.dp, faceDown = true)
+                Text("  ${vm.nameOf(opp)}: ${vm.pedras(n)}", fontSize = 15.sp, fontWeight = FontWeight.Bold)
             }
             Text(
-                "Monte: ${vm.pedras(r.boneyard.size)}", fontSize = 14.sp,
-                modifier = Modifier
-                    .padding(top = 6.dp)
-                    .clearAndSetSemantics { contentDescription = "Monte, ${vm.pedras(r.boneyard.size)}" },
+                "Monte: ${vm.pedras(r.boneyard.size)}", fontSize = 15.sp,
+                modifier = Modifier.clearAndSetSemantics { contentDescription = "Monte, ${vm.pedras(r.boneyard.size)}" },
             )
         }
 
-        // 6) Suas pedras  7) cada pedra
+        // 6) Suas pedras  7) cada pedra — ocupa o resto da tela e rola só aqui dentro, se precisar.
         val handTitle = when (vm.mode) {
             Mode.LOCAL -> "Pedras do ${vm.nameOf(me)}"
             else -> "Suas pedras"
         }
-        Area(handTitle) {
-            val res = r.result
-            when {
-                res != null -> RoundOver(vm, r, v)
-                vm.shuffling -> Text("Embaralhando…")
-                vm.mode == Mode.LOCAL && !vm.revealed -> Curtain(vm, v)
-                else -> Hand(vm, r, me, v, onChoose = { choosing = it })
-            }
-            val c = choosing
-            if (c != null && res == null) SideChooser(r, c, v, onPick = { s -> choosing = null; vm.play(c, s) }, onCancel = { choosing = null })
-            if (res == null && !vm.shuffling && vm.canAct()) {
-                // Quando aparece, o foco do TalkBack vai direto para o botão (depois do aviso falado).
-                val actionFocus = remember { FocusRequester() }
-                val seenAction = remember { vm.actionFocus }
-                if (r.canDraw(me)) ActionButton("Comprar pedra", Modifier.focusRequester(actionFocus)) { vm.draw() }
-                if (r.mustPass(me)) ActionButton("Passar vez", Modifier.focusRequester(actionFocus)) { vm.pass() }
-                LaunchedEffect(vm.actionFocus) {
-                    if (vm.actionFocus != seenAction) runCatching { actionFocus.requestFocus() }
+        Area(handTitle, modifier = Modifier.weight(1f)) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                val res = r.result
+                when {
+                    res != null -> RoundOver(vm, r, v)
+                    vm.shuffling -> Text("Embaralhando…")
+                    vm.mode == Mode.LOCAL && !vm.revealed -> Curtain(vm, v)
+                    else -> Hand(vm, r, me, v, onChoose = { choosing = it })
+                }
+                val c = choosing
+                if (c != null && res == null) SideChooser(r, c, v, onPick = { s -> choosing = null; vm.play(c, s) }, onCancel = { choosing = null })
+                if (res == null && !vm.shuffling && vm.canAct()) {
+                    if (r.canDraw(me)) ActionButton("Comprar pedra") { vm.draw() }
+                    if (r.mustPass(me)) ActionButton("Passar vez") { vm.pass() }
                 }
             }
         }
 
         // Só para quem usa leitor de tela.
         if (screenReader) {
-            OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 4.dp)) {
+            OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 2.dp)) {
                 Text("Ouvir mesa")
             }
         }
-        Spacer(Modifier.height(16.dp))
+    }
+}
+
+/**
+ * Sem pedra que encaixe (com leitor de tela): janela cujo primeiro elemento é o botão
+ * Comprar pedra / Passar vez — o TalkBack põe o foco direto nele.
+ */
+@Composable
+private fun DrawDialog(vm: AppViewModel, r: Round, me: Int) {
+    val buy = r.canDraw(me)
+    val label = if (buy) "Comprar pedra" else "Passar vez"
+    val info = if (r.board.isEmpty()) "Nenhuma pedra sua encaixa."
+    else "Nenhuma pedra sua encaixa nas pontas ${Words.n(r.leftEnd!!)} e ${Words.n(r.rightEnd!!)}." +
+        if (buy) " Monte com ${vm.pedras(r.boneyard.size)}." else " O monte acabou."
+    androidx.compose.ui.window.Dialog(onDismissRequest = { vm.dismissDraw() }) {
+        Column(
+            Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(Palette.Bg)
+                .padding(20.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Button(
+                onClick = { if (buy) vm.draw() else vm.pass() },
+                colors = ButtonDefaults.buttonColors(containerColor = Palette.Start, contentColor = Color.White),
+                shape = RoundedCornerShape(50),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 64.dp)
+                    .semantics { contentDescription = "$label. $info" },
+            ) { Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
+            Text(info, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 12.dp))
+            TextButton(onClick = { vm.dismissDraw() }) { Text("Ver minhas pedras") }
+        }
     }
 }
 
 /** Caixa com borda tracejada, como as ".area" do modelo. */
 @Composable
-private fun Area(title: String, spokenTitle: Boolean = true, content: @Composable () -> Unit) {
+private fun Area(
+    title: String,
+    spokenTitle: Boolean = true,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
     Box(
-        Modifier
+        modifier
             .fillMaxWidth()
-            .padding(vertical = 7.dp)
+            .padding(vertical = 4.dp)
             .dashedBorder()
-            .padding(14.dp),
+            .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                title, fontSize = 18.sp, fontWeight = FontWeight.Bold,
+                title, fontSize = 16.sp, fontWeight = FontWeight.Bold,
                 modifier = if (spokenTitle) Modifier.semantics { heading() } else Modifier.clearAndSetSemantics { },
             )
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             content()
         }
     }
@@ -256,7 +296,7 @@ private fun Board(r: Round, @Suppress("UNUSED_PARAMETER") version: Int) {
         Modifier
             .fillMaxWidth()
             .horizontalScroll(scroll)
-            .padding(12.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
@@ -281,7 +321,7 @@ private fun Hand(vm: AppViewModel, r: Round, me: Int, @Suppress("UNUSED_PARAMETE
     ) {
         r.hands[me].forEach { t ->
             DominoTile(
-                t.b, t.a, vertical = true, unit = 38.dp,
+                t.b, t.a, vertical = true, unit = 34.dp,
                 modifier = Modifier
                     .semantics {
                         contentDescription = "Pedra ${Words.tile(t)}"

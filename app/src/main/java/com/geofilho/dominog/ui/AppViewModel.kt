@@ -216,12 +216,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         sfx.playOpen()
         bump()
         val hint = if (r != null) hintFor(r, r.current) else ""
-        val text = "Mostrando pedras.$hint"
-        status = text
+        status = "Mostrando pedras.$hint"
         // A voz entra logo depois do som de abrir.
         viewModelScope.launch {
             delay(550)
-            if (partnerVoiceOn) voice.speak(text, flush = true)
+            if (partnerVoiceOn) voice.speak("Mostrando pedras.", flush = true)
             if (hint.isNotEmpty()) focusActionAfterSpeech()
         }
     }
@@ -247,12 +246,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun draw() {
+        askDraw = false
         if (!canAct()) return
         if (mode == Mode.BT_GUEST) { link.send(Proto.DRAW); return }
         act(me) { it.draw(me) != null }
     }
 
     fun pass() {
+        askDraw = false
         if (!canAct()) return
         if (mode == Mode.BT_GUEST) { link.send(Proto.PASS); return }
         act(me) { it.pass(me) }
@@ -326,9 +327,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // Comprou e continua sem pedra que encaixe: avisa de novo e leva o foco ao botão.
         val myTurnNow = !r.isOver && r.current == me && (mode != Mode.LOCAL || revealed)
         val hint = if (!turnChanged && myTurnNow) hintFor(r, me) else ""
-        sb.append(hint)
         say(sb.toString(), flush = true)
-        if (hint.isNotEmpty()) focusActionAfterSpeech()
+        if (hint.isNotEmpty()) { status = (status + hint).trim(); focusActionAfterSpeech() }
 
         if (r.isOver && !before.over) announceResult(r)
         else if (turnChanged) announceTurn(r, newRound = false)
@@ -358,8 +358,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
         val mine = p == me
         val hint = if (mine) hintFor(r, p) else ""
-        say(text + if (mine) ".$hint" else "")
-        if (hint.isNotEmpty()) focusActionAfterSpeech()
+        say(text + if (mine) "." else "")
+        if (hint.isNotEmpty()) { status = (status + hint).trim(); focusActionAfterSpeech() }
     }
 
     /** Partida = melhor de 5: vence quem ganhar [WINS_TO_MATCH] rodadas primeiro. */
@@ -522,8 +522,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Incrementa quando o foco do TalkBack deve ir para o botão Comprar pedra / Passar vez. */
     var actionFocus by mutableIntStateOf(0); private set
 
-    /** Depois que a voz terminar o aviso, leva o foco ao botão de comprar/passar. */
-    private fun focusActionAfterSpeech() = voice.afterQueue { actionFocus++ }
+    /**
+     * Sem pedra que encaixe: depois que a voz terminar, com leitor de tela abre o diálogo de comprar/passar
+     * (o foco do TalkBack vai direto para o botão); sem leitor, os botões ficam na tela.
+     */
+    var askDraw by mutableStateOf(false); private set
+
+    private fun focusActionAfterSpeech() = voice.afterQueue {
+        actionFocus++
+        if (screenReaderOn) askDraw = true
+    }
+
+    fun dismissDraw() { askDraw = false }
 
     private fun hintFor(r: Round, p: Int): String = when {
         r.isOver || r.board.isEmpty() || r.playable(p).isNotEmpty() -> ""
