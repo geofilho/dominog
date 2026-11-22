@@ -67,6 +67,10 @@ private fun helpBlocks(version: String): List<Block> {
             "5. Verificar atualização: procura versão nova. Se houver, mostra as novidades e pergunta se quer baixar " +
                 "e instalar. O botão também informa a versão instalada.",
         ),
+        p(
+            "6. Compartilhar jogo: abre o compartilhamento do Android com este texto, já com o número da versão mais " +
+                "recente e o link para baixar, para enviar aos amigos pelo WhatsApp, e-mail ou outro aplicativo.",
+        ),
 
         h("TELA DO JOGO, NA ORDEM DA VARREDURA"),
         p(

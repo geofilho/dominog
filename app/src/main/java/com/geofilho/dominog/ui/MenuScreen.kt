@@ -15,7 +15,12 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import android.content.Intent
 import androidx.compose.material3.AlertDialog
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.getValue
@@ -38,6 +43,8 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun MenuScreen(vm: AppViewModel) {
+    val ctx = LocalContext.current
+    val scope = rememberCoroutineScope()
     var askLevel by remember { mutableStateOf(false) }
     if (askLevel) {
         // Diálogo: o TalkBack leva o foco direto para ele.
@@ -60,6 +67,7 @@ fun MenuScreen(vm: AppViewModel) {
             .fillMaxSize()
             .background(Palette.Bg)
             .safeDrawingPadding()
+            .verticalScroll(rememberScrollState())
             .padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center,
@@ -80,6 +88,18 @@ fun MenuScreen(vm: AppViewModel) {
         MenuButton("Jogar com um parceiro no mesmo aparelho", Palette.Action) { vm.startLocal() }
         MenuButton("Como usar", Palette.AreaBorder) { vm.openHelp() }
         MenuButton("Verificar atualização (versão ${vm.updater.installedVersionName})", Palette.AreaBorder) { vm.checkUpdate() }
+        MenuButton("Compartilhar jogo", Palette.AreaBorder) {
+            scope.launch {
+                // Usa o número da última versão publicada (se não houver internet, o da instalada).
+                val latest = withTimeoutOrNull(4000) { vm.updater.latestVersion() }
+                val version = latest?.let { "1.0.$it" } ?: vm.updater.installedVersionName
+                val send = Intent(Intent.ACTION_SEND)
+                    .setType("text/plain")
+                    .putExtra(Intent.EXTRA_SUBJECT, "Dominó G")
+                    .putExtra(Intent.EXTRA_TEXT, helpPlainText(version))
+                ctx.startActivity(Intent.createChooser(send, "Compartilhar o Dominó G"))
+            }
+        }
         UpdateDialog(vm)
     }
 }
