@@ -36,7 +36,7 @@ private val HELP = listOf(
         "Se ninguém puder jogar, o jogo tranca e vence quem tiver menos pontos na mão.",
     "Para pessoas cegas" to
         "O jogo fala cada jogada, as pontas da mesa e de quem é a vez, e tem sons de pedra. " +
-        "Funciona com o TalkBack: cada pedra é lida pelo nome. O botão Ouvir mesa diz as pontas da mesa " +
+        "Funciona com o TalkBack: cada pedra é lida pelo nome. Com o leitor de tela ligado aparece o botão Ouvir mesa, que diz as pontas da mesa " +
         "quantas pedras o adversário tem e quantas há no monte.",
 )
 

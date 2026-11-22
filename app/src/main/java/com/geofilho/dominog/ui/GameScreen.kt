@@ -170,8 +170,11 @@ fun GameScreen(vm: AppViewModel) {
             }
         }
 
-        OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 4.dp)) {
-            Text("Ouvir mesa")
+        // Só para quem usa leitor de tela.
+        if (rememberScreenReaderOn()) {
+            OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 4.dp)) {
+                Text("Ouvir mesa")
+            }
         }
         OutlinedButton(onClick = { vm.backToMenu() }, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)) {
             Text("Sair do jogo")
