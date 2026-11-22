@@ -387,6 +387,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
             val m = r.lastMove!!
             val who = if (m.player == me && mode != Mode.LOCAL) "Você jogou" else "${spokenName(m.player)} jogou"
             sb.append("$who ${Words.tile(m.tile)}. ")
+            // Você jogou: a pedra saiu da mão e o TalkBack perderia o lugar (ia para a mesa).
+            // Leva o foco para o título "Suas pedras", logo antes das suas pedras.
+            if (m.player == me && mode != Mode.LOCAL && !r.isOver) {
+                DiagLog.add("FOCO", "você jogou: levar foco a Suas pedras")
+                startFocus++
+            }
             if (!r.isOver) sb.append("Ponta esquerda ${Words.n(r.leftEnd!!)}, ponta direita ${Words.n(r.rightEnd!!)}. ")
         }
         for (p in 0 until r.n) if (r.hands[p].size > before.hand(p)) {
@@ -621,7 +627,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         voice.afterQueue { DiagLog.add("FOCO", "voz terminou: levar foco ao Comprar/Passar"); buyFocusToken++ }
     }
 
-    /** Muda depois da fala do início da partida: o foco do TalkBack desce para "Suas pedras". */
+    /** Muda quando o foco do TalkBack deve ir para "Suas pedras" (início da rodada e depois que você joga). */
     var startFocus by mutableIntStateOf(0); private set
     /** Muda depois da fala do resultado da rodada: o foco do TalkBack vai para o resultado. */
     var resultFocus by mutableIntStateOf(0); private set
