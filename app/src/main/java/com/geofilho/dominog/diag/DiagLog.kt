@@ -45,7 +45,16 @@ object DiagLog {
     val count: Int @Synchronized get() = lines.size
 
     /** Eventos de acessibilidade do app (vêm da tela, via delegate na janela). */
+    /** Hora (ms) do último foco do TalkBack em qualquer item do app (para saber se a pessoa deslizou). */
+    @Volatile var lastFocusAt = 0L; private set
+    /** Hora (ms) da última vez que o foco saiu de um item. */
+    @Volatile var lastClearAt = 0L; private set
+
     fun a11y(e: AccessibilityEvent) {
+        when (e.eventType) {
+            AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED -> lastFocusAt = android.os.SystemClock.uptimeMillis()
+            AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED -> lastClearAt = android.os.SystemClock.uptimeMillis()
+        }
         if (!enabled) return
         val type = when (e.eventType) {
             AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED -> "FOCO TalkBack em"

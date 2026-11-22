@@ -495,16 +495,37 @@ private fun isA11yFocused(v: android.view.View) =
  * porque o TalkBack às vezes ainda está terminando de falar. Devolve true se o foco ficou nela.
  */
 private suspend fun focusNative(v: android.view.View, what: String): Boolean {
+    val log = com.geofilho.dominog.diag.DiagLog
+    fun now() = android.os.SystemClock.uptimeMillis()
+    var got = false
     for ((i, wait) in listOf(250L, 700L, 1200L).withIndex()) {
         kotlinx.coroutines.delay(wait)
-        if (isA11yFocused(v)) { DiagLogBridge.add("$what já está com o foco"); return true }
+        if (isA11yFocused(v)) { DiagLogBridge.add("$what já está com o foco"); got = true; break }
         val ok = v.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
         DiagLogBridge.add("tentativa ${i + 1} de focar $what: aceita=$ok, na tela=${v.isShown}")
     }
-    kotlinx.coroutines.delay(300)
-    val focused = isA11yFocused(v)
-    DiagLogBridge.add("$what ${if (focused) "ficou" else "NÃO ficou"} com o foco")
-    return focused
+    if (!got) {
+        kotlinx.coroutines.delay(300)
+        got = isA11yFocused(v)
+    }
+    if (!got) { DiagLogBridge.add("$what NÃO ficou com o foco"); return false }
+    // Vigia por ~3 s: se o foco sumir sozinho (sem ir para outro item), devolve; se a pessoa
+    // deslizar para outro item, para de vigiar.
+    val start = now()
+    var restores = 0
+    while (now() - start < 3000 && restores < 4) {
+        kotlinx.coroutines.delay(150)
+        if (isA11yFocused(v) || !v.isShown) continue
+        val lostAt = now()
+        kotlinx.coroutines.delay(350)
+        if (isA11yFocused(v)) continue
+        if (log.lastFocusAt >= lostAt - 200) { DiagLogBridge.add("$what: a pessoa foi para outro item, paro de vigiar"); return true }
+        v.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+        restores++
+        DiagLogBridge.add("$what perdeu o foco sozinho; devolvido ($restores)")
+    }
+    DiagLogBridge.add("$what ficou com o foco")
+    return true
 }
 
 /** Botão nativo (android.widget.Button) com a aparência dos outros; [onView] recebe a view (ou null ao sair). */
