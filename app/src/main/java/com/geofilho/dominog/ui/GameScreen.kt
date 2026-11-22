@@ -206,10 +206,18 @@ fun GameScreen(vm: AppViewModel) {
                 }
                 val c = choosing
                 if (c != null && res == null) SideChooser(r, c, v, onPick = { s -> choosing = null; vm.play(c, s) }, onCancel = { choosing = null })
-                if (res == null && !vm.shuffling && vm.canAct()) {
-                    // Botão nativo do Android: o app consegue pôr o foco do TalkBack direto nele.
-                    if (r.canDraw(me)) NativeFocusButton("Comprar pedra", vm) { vm.draw() }
-                    if (r.mustPass(me)) NativeFocusButton("Passar vez", vm) { vm.pass() }
+                // Botão fixo logo depois das suas pedras, presente durante toda a rodada (não some):
+                // assim o foco do TalkBack não pula para o alto quando a compra resolve.
+                // Ativo só quando você precisa comprar (ou passar, com o monte vazio).
+                val handVisible = vm.mode != Mode.LOCAL || vm.revealed
+                if (res == null && !vm.shuffling && handVisible) {
+                    val needBuy = vm.canAct() && r.canDraw(me)
+                    val needPass = vm.canAct() && r.mustPass(me)
+                    NativeFocusButton(
+                        label = if (needPass || (r.n == 4 && !needBuy)) "Passar vez" else "Comprar pedra",
+                        enabled = needBuy || needPass,
+                        vm = vm,
+                    ) { if (needBuy) vm.draw() else if (needPass) vm.pass() }
                 }
             }
         }
@@ -441,7 +449,7 @@ private fun ShuffleAnimation() {
  * que funciona de forma confiável em views nativas.
  */
 @Composable
-private fun NativeFocusButton(label: String, vm: AppViewModel, onClick: () -> Unit) {
+private fun NativeFocusButton(label: String, enabled: Boolean, vm: AppViewModel, onClick: () -> Unit) {
     var view by remember { mutableStateOf<android.widget.Button?>(null) }
     val click by androidx.compose.runtime.rememberUpdatedState(onClick)
     androidx.compose.ui.viewinterop.AndroidView(
@@ -449,12 +457,7 @@ private fun NativeFocusButton(label: String, vm: AppViewModel, onClick: () -> Un
             android.widget.Button(ctx).apply {
                 isAllCaps = false
                 textSize = 18f
-                setTextColor(android.graphics.Color.WHITE)
                 val dp = ctx.resources.displayMetrics.density
-                background = android.graphics.drawable.GradientDrawable().apply {
-                    setColor(Palette.Action.toArgb())
-                    cornerRadius = 8 * dp
-                }
                 minHeight = (56 * dp).toInt()
                 minimumHeight = (56 * dp).toInt()
                 setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
@@ -462,14 +465,29 @@ private fun NativeFocusButton(label: String, vm: AppViewModel, onClick: () -> Un
                 setOnClickListener { click() }
             }
         },
-        update = { it.text = label; view = it },
+        update = { b ->
+            val dp = b.resources.displayMetrics.density
+            b.text = label
+            b.isEnabled = enabled
+            b.setTextColor(if (enabled) android.graphics.Color.WHITE else 0xFF9AA4AE.toInt())
+            b.background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(if (enabled) Palette.Action.toArgb() else Palette.AreaBorder.toArgb())
+                cornerRadius = 8 * dp
+            }
+            view = b
+        },
         modifier = Modifier.padding(top = 10.dp),
     )
-    LaunchedEffect(vm.buyFocusPending, view) {
+    // Sua vez sem pedra que encaixe: leva o foco do TalkBack para o botão
+    // (tenta algumas vezes, porque o TalkBack às vezes ainda está terminando de falar).
+    LaunchedEffect(vm.buyFocusPending, view, enabled) {
         val v = view ?: return@LaunchedEffect
-        if (!vm.buyFocusPending) return@LaunchedEffect
-        kotlinx.coroutines.delay(250)
-        v.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+        if (!vm.buyFocusPending || !enabled) return@LaunchedEffect
         vm.consumeBuyFocus()
+        for (wait in listOf(250L, 700L, 1200L)) {
+            kotlinx.coroutines.delay(wait)
+            if (runCatching { v.createAccessibilityNodeInfo().isAccessibilityFocused }.getOrDefault(false)) break
+            v.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+        }
     }
 }
