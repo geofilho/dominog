@@ -408,11 +408,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         val hint = if (!turnChanged && myTurnNow) hintFor(r, me) else ""
         // Comprou e a pedra comprada encaixa: depois da fala, o foco vai para ela.
         val bought = if (mode != Mode.LOCAL && !turnChanged && myTurnNow && r.hands[me].size > before.hand(me)) r.hands[me].last() else null
-        if (bought != null && hint.isEmpty() && r.sidesFor(bought).isNotEmpty()) {
-            DiagLog.add("FOCO", "comprou ${Words.tile(bought)}, que encaixa: levar foco a ela depois da fala")
+        val boughtFits = bought != null && hint.isEmpty() && r.sidesFor(bought).isNotEmpty()
+        say(sb.toString(), flush = true)
+        // (Depois do say: a fala com "flush" limparia um pedido feito antes dela.)
+        if (boughtFits) {
+            DiagLog.add("FOCO", "comprou ${Words.tile(bought!!)}, que encaixa: levar foco a ela depois da fala")
             voice.afterQueue { tileFocusId = bought.id; tileFocusToken++ }
         }
-        say(sb.toString(), flush = true)
         if (hint.isNotEmpty()) { status = (status + hint).trim(); focusActionAfterSpeech() }
 
         if (r.isOver && !before.over) announceResult(r)

@@ -327,7 +327,10 @@ private fun Hand(vm: AppViewModel, r: Round, me: Int, @Suppress("UNUSED_PARAMETE
                     factory = { ctx -> NativeTileView(ctx) },
                     update = { v ->
                         v.setTile(t.b, t.a, "Pedra ${Words.tile(t)}")
-                        v.setOnClickListener { if (vm.tapTile(t).size > 1) choose(t) }
+                        if (v.tag != t.id) {
+                            v.tag = t.id
+                            v.setOnClickListener { if (vm.tapTile(t).size > 1) choose(t) }
+                        }
                         views[t.id] = v
                     },
                     onRelease = { v -> if (views[t.id] === v) views.remove(t.id) },
@@ -549,17 +552,18 @@ private fun NativeButton(
                 setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
                 stateListAnimator = null
                 setOnClickListener { click() }
+                // Aparência definida uma vez só (mudar a cada atualização fazia o TalkBack largar o foco).
+                setTextColor(if (primary) android.graphics.Color.WHITE else Palette.Action.toArgb())
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    cornerRadius = 26 * dp
+                    if (primary) setColor(Palette.Action.toArgb())
+                    else { setColor(android.graphics.Color.TRANSPARENT); setStroke((1 * dp).toInt(), Palette.AreaBorder.toArgb()) }
+                }
             }
         },
         update = { b ->
-            val dp = b.resources.displayMetrics.density
-            b.text = label
-            b.setTextColor(if (primary) android.graphics.Color.WHITE else Palette.Action.toArgb())
-            b.background = android.graphics.drawable.GradientDrawable().apply {
-                cornerRadius = 26 * dp
-                if (primary) setColor(Palette.Action.toArgb())
-                else { setColor(android.graphics.Color.TRANSPARENT); setStroke((1 * dp).toInt(), Palette.AreaBorder.toArgb()) }
-            }
+            // Só troca o texto se mudou: reescrever o mesmo texto faz o TalkBack perder o foco.
+            if (b.text.toString() != label) b.text = label
             viewCb(b)
         },
         onRelease = { viewCb(null) },
@@ -585,7 +589,12 @@ private fun NativeFocusText(text: String, token: Int, sizeSp: Float, what: Strin
                 isFocusable = true
             }
         },
-        update = { tv -> tv.text = text; tv.textSize = sizeSp; view = tv },
+        update = { tv ->
+            // Só atualiza se mudou (reescrever faz o TalkBack perder o foco).
+            if (tv.text.toString() != text) tv.text = text
+            if (tv.tag != sizeSp) { tv.textSize = sizeSp; tv.tag = sizeSp }
+            if (view !== tv) view = tv
+        },
         onRelease = { view = null },
         modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
     )

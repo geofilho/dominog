@@ -56,6 +56,12 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
     fun speak(text: String, flush: Boolean = false) {
         if (!enabled || text.isBlank()) return
         if (!ready) { if (failed) return; if (flush) pending.clear(); pending += { speak(text, flush) }; return }
+        if (flush && callbacks.isNotEmpty()) {
+            // Uma fala que interrompe a fila não pode apagar pedidos "depois da fala" (ex.: foco):
+            // eles são executados agora.
+            val waiting = callbacks.values.toList(); callbacks.clear()
+            waiting.forEach { main.post(it) }
+        }
         tts.speak(text, if (flush) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD, Bundle.EMPTY, newId(null))
     }
 

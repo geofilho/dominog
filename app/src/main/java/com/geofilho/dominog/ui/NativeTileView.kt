@@ -42,7 +42,7 @@ class NativeTileView(context: Context) : View(context) {
 
     fun setTile(top: Int, bottom: Int, description: String) {
         if (topValue != top || bottomValue != bottom) { topValue = top; bottomValue = bottom; invalidate() }
-        contentDescription = description
+        if (contentDescription?.toString() != description) contentDescription = description
     }
 
     override fun onMeasure(widthMeasureSpec: Int, heightMeasureSpec: Int) {
