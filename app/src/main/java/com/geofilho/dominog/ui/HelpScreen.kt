@@ -103,9 +103,9 @@ private fun helpBlocks(version: String): List<Block> {
                 "adversário, quantas pedras estão na mesa e, depois que alguém comprar a primeira pedra, quantas restam no monte.",
         ),
         p(
-            "8. Comprar pedra: é o último item da tela, depois de Ouvir mesa. Fica sempre no mesmo lugar e só " +
-                "funciona quando você não tem pedra que encaixe; fora disso, o TalkBack lê desativado. Com o monte " +
-                "vazio (ou com 4 jogadores), vira Passar vez. Quando você precisa comprar, o foco do TalkBack vai para ele.",
+            "8. Comprar pedra: aparece só quando você não tem pedra que encaixe, logo depois de Ouvir mesa. Com o " +
+                "monte vazio (ou com 4 jogadores), aparece Passar vez. Quando ele aparece, o foco do TalkBack vai para " +
+                "ele; se não conseguir, vai para Ouvir mesa, e um toque para a direita chega nele.",
         ),
         p(
             "9. Sair do jogo: não há botão de sair na tela, para não ser tocado sem querer durante a partida. " +
@@ -113,7 +113,10 @@ private fun helpBlocks(version: String): List<Block> {
                 "O jogo pergunta \"Deseja sair do jogo?\": toque em Sim para voltar ao menu ou em Não para continuar jogando.",
         ),
         p(
-            "O que o jogo fala e toca:\n" +
+            "Para onde vai o foco do TalkBack: no começo de cada rodada, depois da leitura, o foco desce para o " +
+                "título Suas pedras. No fim da rodada, depois da leitura do resultado, o foco vai para a frase do " +
+                "resultado, como Você bateu.\n\n" +
+                "O que o jogo fala e toca:\n" +
                 "- No começo de cada rodada, o som das pedras sendo embaralhadas na mesa.\n" +
                 "- A cada jogada, o som da pedra batendo na mesa, e a voz diz quem jogou, qual pedra e as pontas.\n" +
                 "- Ao comprar, um som de pedra e o aviso de quem comprou.\n" +

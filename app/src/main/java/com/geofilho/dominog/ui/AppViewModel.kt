@@ -436,6 +436,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         val hint = if (mine) hintFor(r, p) else ""
         say(text + if (mine) "." else "")
         if (hint.isNotEmpty()) { status = (status + hint).trim(); focusActionAfterSpeech() }
+        else if (newRound) {
+            // Início da partida: depois da fala, o foco desce para "Suas pedras".
+            voice.afterQueue { DiagLog.add("FOCO", "início da rodada: levar foco a Suas pedras"); startFocus++ }
+        }
     }
 
     /** Partida = melhor de 5: vence o lado (jogador ou dupla) que ganhar [WINS_TO_MATCH] rodadas primeiro. */
@@ -474,6 +478,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         sb.append("${if (matchOver) "Placar final" else "Placar"}: ${placarText()}.")
         say(sb.toString())
         bump()
+        // Depois da fala do resultado, o foco vai para a frase do resultado (ex.: "Você bateu!").
+        voice.afterQueue { DiagLog.add("FOCO", "fim da rodada: levar foco ao resultado"); resultFocus++ }
     }
 
     /** Nomes dos outros jogadores (para o histórico do Bluetooth). */
@@ -616,6 +622,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     }
 
     fun consumeBuyFocus() { buyFocusPending = false }
+
+    /** Muda depois da fala do início da partida: o foco do TalkBack desce para "Suas pedras". */
+    var startFocus by mutableIntStateOf(0); private set
+    /** Muda depois da fala do resultado da rodada: o foco do TalkBack vai para o resultado. */
+    var resultFocus by mutableIntStateOf(0); private set
 
     private fun hintFor(r: Round, p: Int): String = when {
         r.isOver || r.board.isEmpty() || r.playable(p).isNotEmpty() -> ""

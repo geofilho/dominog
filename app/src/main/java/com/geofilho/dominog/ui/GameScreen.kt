@@ -190,7 +190,9 @@ fun GameScreen(vm: AppViewModel) {
             Mode.LOCAL -> "Pedras do ${vm.nameOf(me)}"
             else -> "Suas pedras"
         }
-        Area(handTitle, modifier = Modifier.weight(1f)) {
+        Area(handTitle, showTitle = false, modifier = Modifier.weight(1f)) {
+            // Título nativo: no início da partida, o foco do TalkBack desce para ele.
+            NativeFocusText(handTitle, token = vm.startFocus, sizeSp = 16f, what = "título Suas pedras")
             Column(
                 Modifier
                     .fillMaxWidth()
@@ -209,25 +211,32 @@ fun GameScreen(vm: AppViewModel) {
             }
         }
 
-        // Só para quem usa leitor de tela.
+        // Ouvir mesa (só com leitor de tela) e, quando você precisa, Comprar pedra / Passar vez logo depois.
+        // Os dois são botões nativos do Android: o app consegue pôr o foco do TalkBack neles.
+        var ouvirView by remember { mutableStateOf<android.view.View?>(null) }
+        var buyView by remember { mutableStateOf<android.view.View?>(null) }
         if (screenReader) {
-            OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 2.dp)) {
-                Text("Ouvir mesa")
+            NativeButton("Ouvir mesa", primary = false, onView = { ouvirView = it }) { vm.describe() }
+        }
+        val handVisible = vm.mode != Mode.LOCAL || vm.revealed
+        val needBuy = r.result == null && !vm.shuffling && handVisible && vm.canAct() && r.canDraw(me)
+        val needPass = r.result == null && !vm.shuffling && handVisible && vm.canAct() && r.mustPass(me)
+        if (needBuy || needPass) {
+            NativeButton(if (needBuy) "Comprar pedra" else "Passar vez", primary = true, onView = { buyView = it }) {
+                if (needBuy) vm.draw() else vm.pass()
             }
         }
-
-        // Botão fixo no fim da tela (depois de Ouvir mesa), presente durante toda a rodada (não some):
-        // assim o foco do TalkBack não pula para o alto quando a compra resolve.
-        // Ativo só quando você precisa comprar (ou passar, com o monte vazio).
-        val handVisible = vm.mode != Mode.LOCAL || vm.revealed
-        if (r.result == null && !vm.shuffling && handVisible) {
-            val needBuy = vm.canAct() && r.canDraw(me)
-            val needPass = vm.canAct() && r.mustPass(me)
-            NativeFocusButton(
-                label = if (needPass || (r.n == 4 && !needBuy)) "Passar vez" else "Comprar pedra",
-                enabled = needBuy || needPass,
-                vm = vm,
-            ) { if (needBuy) vm.draw() else if (needPass) vm.pass() }
+        // Sua vez sem pedra que encaixe: foco no Comprar/Passar; se não der, no Ouvir mesa (logo antes dele).
+        LaunchedEffect(vm.buyFocusPending, buyView) {
+            val b = buyView ?: return@LaunchedEffect
+            if (!vm.buyFocusPending) return@LaunchedEffect
+            vm.consumeBuyFocus()
+            if (!focusNative(b, "botão Comprar/Passar")) {
+                ouvirView?.let {
+                    DiagLogBridge.add("não focou o Comprar/Passar; tentando o Ouvir mesa")
+                    focusNative(it, "botão Ouvir mesa")
+                }
+            }
         }
     }
 }
@@ -237,6 +246,7 @@ fun GameScreen(vm: AppViewModel) {
 private fun Area(
     title: String,
     spokenTitle: Boolean = true,
+    showTitle: Boolean = true,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
@@ -248,10 +258,12 @@ private fun Area(
             .padding(horizontal = 10.dp, vertical = 8.dp),
     ) {
         Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                title, fontSize = 16.sp, fontWeight = FontWeight.Bold,
-                modifier = if (spokenTitle) Modifier.semantics { heading() } else Modifier.clearAndSetSemantics { },
-            )
+            if (showTitle) {
+                Text(
+                    title, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    modifier = if (spokenTitle) Modifier.semantics { heading() } else Modifier.clearAndSetSemantics { },
+                )
+            }
             Spacer(Modifier.height(4.dp))
             content()
         }
@@ -373,7 +385,8 @@ private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") 
         else -> "Trancado: ${vm.nameOf(res.winner)} venceu a rodada!"
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        // Título nativo: depois da leitura do resultado, o foco do TalkBack vem para ele.
+        NativeFocusText(title, token = vm.resultFocus, sizeSp = 20f, what = "resultado da rodada")
         Text(
             "${if (vm.matchOver) "Placar final" else "Placar"}: ${vm.placarText()}",
             fontSize = 17.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 4.dp),
@@ -447,23 +460,49 @@ private fun ShuffleAnimation() {
     }
 }
 
+/** Atalho para o registro de diagnóstico. */
+private object DiagLogBridge {
+    fun add(msg: String) = com.geofilho.dominog.diag.DiagLog.add("FOCO", msg)
+}
+
+private fun isA11yFocused(v: android.view.View) =
+    runCatching { v.createAccessibilityNodeInfo().isAccessibilityFocused }.getOrDefault(false)
+
 /**
- * Botão nativo (android.widget.Button) com a mesma aparência dos outros. Quando o jogo pede
- * ([AppViewModel.buyFocusPending]), o foco do TalkBack é colocado nele com ACTION_ACCESSIBILITY_FOCUS,
- * que funciona de forma confiável em views nativas.
+ * Põe o foco do TalkBack numa view nativa (ACTION_ACCESSIBILITY_FOCUS), tentando algumas vezes
+ * porque o TalkBack às vezes ainda está terminando de falar. Devolve true se o foco ficou nela.
  */
+private suspend fun focusNative(v: android.view.View, what: String): Boolean {
+    for ((i, wait) in listOf(250L, 700L, 1200L).withIndex()) {
+        kotlinx.coroutines.delay(wait)
+        if (isA11yFocused(v)) { DiagLogBridge.add("$what já está com o foco"); return true }
+        val ok = v.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+        DiagLogBridge.add("tentativa ${i + 1} de focar $what: aceita=$ok, na tela=${v.isShown}")
+    }
+    kotlinx.coroutines.delay(300)
+    val focused = isA11yFocused(v)
+    DiagLogBridge.add("$what ${if (focused) "ficou" else "NÃO ficou"} com o foco")
+    return focused
+}
+
+/** Botão nativo (android.widget.Button) com a aparência dos outros; [onView] recebe a view (ou null ao sair). */
 @Composable
-private fun NativeFocusButton(label: String, enabled: Boolean, vm: AppViewModel, onClick: () -> Unit) {
-    var view by remember { mutableStateOf<android.widget.Button?>(null) }
+private fun NativeButton(
+    label: String,
+    primary: Boolean,
+    onView: (android.view.View?) -> Unit,
+    onClick: () -> Unit,
+) {
     val click by androidx.compose.runtime.rememberUpdatedState(onClick)
+    val viewCb by androidx.compose.runtime.rememberUpdatedState(onView)
     androidx.compose.ui.viewinterop.AndroidView(
         factory = { ctx ->
             android.widget.Button(ctx).apply {
                 isAllCaps = false
                 textSize = 18f
                 val dp = ctx.resources.displayMetrics.density
-                minHeight = (56 * dp).toInt()
-                minimumHeight = (56 * dp).toInt()
+                minHeight = (52 * dp).toInt()
+                minimumHeight = (52 * dp).toInt()
                 setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
                 stateListAnimator = null
                 setOnClickListener { click() }
@@ -472,30 +511,43 @@ private fun NativeFocusButton(label: String, enabled: Boolean, vm: AppViewModel,
         update = { b ->
             val dp = b.resources.displayMetrics.density
             b.text = label
-            b.isEnabled = enabled
-            b.setTextColor(if (enabled) android.graphics.Color.WHITE else 0xFF9AA4AE.toInt())
+            b.setTextColor(if (primary) android.graphics.Color.WHITE else Palette.Action.toArgb())
             b.background = android.graphics.drawable.GradientDrawable().apply {
-                setColor(if (enabled) Palette.Action.toArgb() else Palette.AreaBorder.toArgb())
-                cornerRadius = 8 * dp
+                cornerRadius = 26 * dp
+                if (primary) setColor(Palette.Action.toArgb())
+                else { setColor(android.graphics.Color.TRANSPARENT); setStroke((1 * dp).toInt(), Palette.AreaBorder.toArgb()) }
             }
-            view = b
+            viewCb(b)
         },
-        modifier = Modifier.padding(top = 10.dp),
+        onRelease = { viewCb(null) },
+        modifier = Modifier.padding(top = 6.dp),
     )
-    // Sua vez sem pedra que encaixe: leva o foco do TalkBack para o botão
-    // (tenta algumas vezes, porque o TalkBack às vezes ainda está terminando de falar).
-    LaunchedEffect(vm.buyFocusPending, view, enabled) {
+}
+
+/**
+ * Texto nativo (TextView) usado como título. Quando [token] muda (depois da fala), o app põe o
+ * foco do TalkBack nele.
+ */
+@Composable
+private fun NativeFocusText(text: String, token: Int, sizeSp: Float, what: String) {
+    var view by remember { mutableStateOf<android.widget.TextView?>(null) }
+    val seen = remember { token }
+    androidx.compose.ui.viewinterop.AndroidView(
+        factory = { ctx ->
+            android.widget.TextView(ctx).apply {
+                gravity = android.view.Gravity.CENTER
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+                setTextColor(Palette.Text.toArgb())
+                if (android.os.Build.VERSION.SDK_INT >= 28) isAccessibilityHeading = true
+                isFocusable = true
+            }
+        },
+        update = { tv -> tv.text = text; tv.textSize = sizeSp; view = tv },
+        onRelease = { view = null },
+        modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+    )
+    LaunchedEffect(token, view) {
         val v = view ?: return@LaunchedEffect
-        if (!vm.buyFocusPending || !enabled) return@LaunchedEffect
-        vm.consumeBuyFocus()
-        for ((i, wait) in listOf(250L, 700L, 1200L).withIndex()) {
-            kotlinx.coroutines.delay(wait)
-            val already = runCatching { v.createAccessibilityNodeInfo().isAccessibilityFocused }.getOrDefault(false)
-            if (already) { com.geofilho.dominog.diag.DiagLog.add("FOCO", "botão '${v.text}' já está com o foco"); break }
-            val ok = v.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
-            com.geofilho.dominog.diag.DiagLog.add(
-                "FOCO", "tentativa ${i + 1} de focar '${v.text}': aceita=$ok, na tela=${v.isShown}, anexado=${v.isAttachedToWindow}",
-            )
-        }
+        if (token != seen) focusNative(v, what)
     }
 }
