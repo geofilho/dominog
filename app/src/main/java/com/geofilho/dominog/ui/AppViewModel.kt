@@ -272,6 +272,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun announceResult(r: Round) {
         val res = r.result!!
         if (res.winner >= 0 && (mode != Mode.BT_GUEST)) scores[res.winner] += res.points
+        if (res.winner >= 0) sfx.playApplause()
         val how = if (res.reason == EndReason.BATIDA) "bateu" else "venceu no jogo trancado"
         val text = when {
             res.winner < 0 -> "Jogo trancado. Empate."

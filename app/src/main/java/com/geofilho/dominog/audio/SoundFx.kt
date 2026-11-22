@@ -23,6 +23,7 @@ class SoundFx {
     @Volatile private var clack: ShortArray? = null
     @Volatile private var shuffle: ShortArray? = null
     @Volatile private var draw: ShortArray? = null
+    @Volatile private var applause: ShortArray? = null
     private val attrs = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_GAME)
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -34,12 +35,14 @@ class SoundFx {
             clack = synthClack(rnd, 1f, 2900f)
             draw = synthClack(rnd, 0.45f, 2300f)
             shuffle = synthShuffle(rnd)
+            applause = synthApplause(rnd)
         }
     }
 
     fun playTile() = play(clack)
     fun playDraw() = play(draw)
     fun playShuffle() = play(shuffle)
+    fun playApplause() = play(applause)
 
     private fun play(pcm: ShortArray?) {
         pcm ?: return
@@ -87,6 +90,34 @@ class SoundFx {
                 out[i] = (v.coerceIn(-1f, 1f) * 26000).toInt().toShort()
             }
             return out
+        }
+
+        /** ~3 s de aplausos: centenas de palmas curtas (ruído filtrado) sobrepostas. */
+        fun synthApplause(rnd: Random): ShortArray {
+            val n = (RATE * 3.0).toInt()
+            val mix = FloatArray(n)
+            val clapLen = (RATE * 0.03).toInt()
+            repeat(420) {
+                val start = (rnd.nextFloat() * (n - clapLen)).toInt()
+                val gain = 0.15f + rnd.nextFloat() * 0.25f
+                // cada palma: ruído passa-banda simples com decaimento rápido
+                var lp = 0f; var prev = 0f
+                val cut = 0.25f + rnd.nextFloat() * 0.35f
+                for (j in 0 until clapLen) {
+                    val x = rnd.nextFloat() * 2 - 1
+                    lp += cut * (x - lp)
+                    val bp = lp - prev; prev = lp
+                    val env = exp(-j / (RATE * 0.006f))
+                    mix[start + j] += bp * env * gain * 3f
+                }
+            }
+            // envelope geral: entra rápido, mantém e some no último segundo
+            for (i in 0 until n) {
+                val t = i / RATE.toFloat()
+                val env = minOf(1f, t / 0.25f) * minOf(1f, (3.0f - t) / 1.2f)
+                mix[i] *= env.coerceAtLeast(0f)
+            }
+            return ShortArray(n) { (mix[it].coerceIn(-1f, 1f) * 26000).toInt().toShort() }
         }
 
         /** ~1,6 s de vários cliques aleatórios mais um "arrastar" de fundo. */
