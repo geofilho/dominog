@@ -7,6 +7,11 @@ on:
 permissions:
   contents: write
 
+# Um build por vez: o APK publicado é sempre o do último envio.
+concurrency:
+  group: android-release
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
