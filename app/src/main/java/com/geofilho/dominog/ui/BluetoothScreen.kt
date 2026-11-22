@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -106,11 +107,13 @@ fun BluetoothScreen(vm: AppViewModel) {
             .background(Palette.Bg)
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
+            .semantics { isTraversalGroup = true }
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = { vm.backToMenu() }) { Text("Voltar") }
+            Spacer(Modifier.weight(1f))
+            CornerExitButton("Voltar") { vm.backToMenu() }
         }
         Text(
             "Jogar via Bluetooth", fontSize = 28.sp, fontWeight = FontWeight.Bold,

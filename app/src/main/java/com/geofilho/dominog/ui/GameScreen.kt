@@ -50,6 +50,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
@@ -83,13 +84,12 @@ fun GameScreen(vm: AppViewModel) {
             .background(Palette.Bg)
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
+            .semantics { isTraversalGroup = true }
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         // Sair (canto superior esquerdo, longe das pedras) e placar
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = { vm.backToMenu() }) { Text("Sair do jogo") }
-            Spacer(Modifier.weight(1f))
             Text(
                 "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
                 fontWeight = FontWeight.Bold,
@@ -98,6 +98,8 @@ fun GameScreen(vm: AppViewModel) {
                     contentDescription = "Placar: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
                 },
             )
+            Spacer(Modifier.weight(1f))
+            CornerExitButton("Sair do jogo") { vm.backToMenu() }
         }
         Spacer(Modifier.height(6.dp))
         // Linha de status amarela (só visual: a voz do app já fala tudo, o TalkBack não repete).

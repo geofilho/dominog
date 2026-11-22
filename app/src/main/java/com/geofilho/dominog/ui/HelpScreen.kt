@@ -3,16 +3,19 @@ package com.geofilho.dominog.ui
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -49,9 +52,13 @@ fun HelpScreen(vm: AppViewModel) {
             .background(Palette.Bg)
             .safeDrawingPadding()
             .verticalScroll(rememberScrollState())
+            .semantics { isTraversalGroup = true }
             .padding(20.dp),
     ) {
-        OutlinedButton(onClick = { vm.backToMenu() }) { Text("Voltar") }
+        Row(Modifier.fillMaxWidth()) {
+            Spacer(Modifier.weight(1f))
+            CornerExitButton("Voltar") { vm.backToMenu() }
+        }
         Text(
             "Como usar", fontSize = 30.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(vertical = 12.dp).semantics { heading() },
