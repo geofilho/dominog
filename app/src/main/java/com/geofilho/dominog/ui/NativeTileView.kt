@@ -15,8 +15,8 @@ import androidx.compose.ui.graphics.toArgb
  */
 class NativeTileView(context: Context) : View(context) {
     /** Número de cima e de baixo (a pedra fica em pé). */
-    var top = 0; private set
-    var bottom = 0; private set
+    var topValue = 0; private set
+    var bottomValue = 0; private set
 
     private val density = resources.displayMetrics.density
     private val body = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Palette.Ivory.toArgb() }
@@ -41,7 +41,7 @@ class NativeTileView(context: Context) : View(context) {
     }
 
     fun setTile(top: Int, bottom: Int, description: String) {
-        if (this.top != top || this.bottom != bottom) { this.top = top; this.bottom = bottom; invalidate() }
+        if (topValue != top || bottomValue != bottom) { topValue = top; bottomValue = bottom; invalidate() }
         contentDescription = description
     }
 
@@ -63,8 +63,8 @@ class NativeTileView(context: Context) : View(context) {
         edge.strokeWidth = 2.5f
         canvas.drawLine(half * 0.18f, half, w - half * 0.18f, half, edge)
         edge.strokeWidth = 2f
-        drawPips(canvas, top, 0f, half)
-        drawPips(canvas, bottom, half, half)
+        drawPips(canvas, topValue, 0f, half)
+        drawPips(canvas, bottomValue, half, half)
     }
 
     private fun drawPips(canvas: Canvas, v: Int, originY: Float, cell: Float) {
