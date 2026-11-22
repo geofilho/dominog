@@ -206,19 +206,6 @@ fun GameScreen(vm: AppViewModel) {
                 }
                 val c = choosing
                 if (c != null && res == null) SideChooser(r, c, v, onPick = { s -> choosing = null; vm.play(c, s) }, onCancel = { choosing = null })
-                // Botão fixo logo depois das suas pedras, presente durante toda a rodada (não some):
-                // assim o foco do TalkBack não pula para o alto quando a compra resolve.
-                // Ativo só quando você precisa comprar (ou passar, com o monte vazio).
-                val handVisible = vm.mode != Mode.LOCAL || vm.revealed
-                if (res == null && !vm.shuffling && handVisible) {
-                    val needBuy = vm.canAct() && r.canDraw(me)
-                    val needPass = vm.canAct() && r.mustPass(me)
-                    NativeFocusButton(
-                        label = if (needPass || (r.n == 4 && !needBuy)) "Passar vez" else "Comprar pedra",
-                        enabled = needBuy || needPass,
-                        vm = vm,
-                    ) { if (needBuy) vm.draw() else if (needPass) vm.pass() }
-                }
             }
         }
 
@@ -227,6 +214,20 @@ fun GameScreen(vm: AppViewModel) {
             OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 2.dp)) {
                 Text("Ouvir mesa")
             }
+        }
+
+        // Botão fixo no fim da tela (depois de Ouvir mesa), presente durante toda a rodada (não some):
+        // assim o foco do TalkBack não pula para o alto quando a compra resolve.
+        // Ativo só quando você precisa comprar (ou passar, com o monte vazio).
+        val handVisible = vm.mode != Mode.LOCAL || vm.revealed
+        if (r.result == null && !vm.shuffling && handVisible) {
+            val needBuy = vm.canAct() && r.canDraw(me)
+            val needPass = vm.canAct() && r.mustPass(me)
+            NativeFocusButton(
+                label = if (needPass || (r.n == 4 && !needBuy)) "Passar vez" else "Comprar pedra",
+                enabled = needBuy || needPass,
+                vm = vm,
+            ) { if (needBuy) vm.draw() else if (needPass) vm.pass() }
         }
     }
 }

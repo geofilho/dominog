@@ -96,14 +96,15 @@ private fun helpBlocks(version: String): List<Block> {
                 "- Se a pedra não encaixar, o jogo avisa \"Essa pedra não encaixa!\". O jogo não sugere qual pedra jogar.",
         ),
         p(
-            "7. Comprar pedra: fica sempre logo depois das suas pedras e só funciona quando você não tem pedra que " +
-                "encaixe; fora disso, o TalkBack lê desativado. Com o monte vazio (ou com 4 jogadores), ele vira " +
-                "Passar vez. Quando você precisa comprar, o foco do TalkBack vai para ele. A pedra comprada entra no fim " +
-                "da sua mão, logo antes do botão: um toque para a esquerda chega nela.",
+            "7. Ouvir mesa: só aparece com o leitor de tela ligado. Fala as pontas, quantas pedras tem cada " +
+                "adversário, quantas pedras estão na mesa e, depois que alguém comprar a primeira pedra, quantas restam no monte.",
         ),
         p(
-            "8. Ouvir mesa: só aparece com o leitor de tela ligado. Fala as pontas, quantas pedras tem o adversário, " +
-                "quantas pedras estão na mesa e, depois que alguém comprar a primeira pedra, quantas restam no monte.",
+            "8. Comprar pedra: é o último item da tela, depois de Ouvir mesa. Fica sempre no mesmo lugar e só " +
+                "funciona quando você não tem pedra que encaixe; fora disso, o TalkBack lê desativado. Com o monte " +
+                "vazio (ou com 4 jogadores), vira Passar vez. Quando você precisa comprar, o foco do TalkBack vai para ele."), ele vira " +
+                "Passar vez. Quando você precisa comprar, o foco do TalkBack vai para ele. A pedra comprada entra no fim " +
+                "da sua mão, logo antes do botão: um toque para a esquerda chega nela.",
         ),
         p(
             "9. Sair do jogo: não há botão de sair na tela, para não ser tocado sem querer durante a partida. " +
