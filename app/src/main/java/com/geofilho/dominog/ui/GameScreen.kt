@@ -66,7 +66,9 @@ import kotlin.random.Random
 @Composable
 fun GameScreen(vm: AppViewModel) {
     BackHandler { vm.backToMenu() }
-    @Suppress("UNUSED_VARIABLE") val v = vm.version // observa mudanças da rodada
+    // A rodada é um objeto mutável: [v] muda a cada jogada e é passado às partes da tela
+    // para que o Compose as redesenhe (senão ele reaproveita o desenho antigo).
+    val v = vm.version
     val r = vm.round ?: return
     val me = vm.me
     val opp = 1 - me
@@ -123,7 +125,7 @@ fun GameScreen(vm: AppViewModel) {
                 contentAlignment = Alignment.Center,
             ) {
                 if (vm.shuffling) ShuffleAnimation()
-                else Board(r)
+                else Board(r, v)
             }
         }
 
@@ -155,13 +157,13 @@ fun GameScreen(vm: AppViewModel) {
         Area(handTitle) {
             val res = r.result
             when {
-                res != null -> RoundOver(vm, r)
+                res != null -> RoundOver(vm, r, v)
                 vm.shuffling -> Text("Embaralhando…")
-                vm.mode == Mode.LOCAL && !vm.revealed -> Curtain(vm)
-                else -> Hand(vm, r, me, onChoose = { choosing = it })
+                vm.mode == Mode.LOCAL && !vm.revealed -> Curtain(vm, v)
+                else -> Hand(vm, r, me, v, onChoose = { choosing = it })
             }
             val c = choosing
-            if (c != null && res == null) SideChooser(r, c, onPick = { s -> choosing = null; vm.play(c, s) }, onCancel = { choosing = null })
+            if (c != null && res == null) SideChooser(r, c, v, onPick = { s -> choosing = null; vm.play(c, s) }, onCancel = { choosing = null })
             if (res == null && !vm.shuffling && vm.canAct()) {
                 if (r.canDraw(me)) ActionButton("Comprar Pedra") { vm.draw() }
                 if (r.mustPass(me)) ActionButton("Passar Vez") { vm.pass() }
@@ -204,7 +206,7 @@ private fun Modifier.dashedBorder(): Modifier = drawBehind {
 }
 
 @Composable
-private fun Board(r: Round) {
+private fun Board(r: Round, @Suppress("UNUSED_PARAMETER") version: Int) {
     if (r.board.isEmpty()) return
     val scroll = rememberScrollState()
     // Mantém visível a ponta onde a última pedra foi jogada.
@@ -232,7 +234,7 @@ private fun Board(r: Round) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Hand(vm: AppViewModel, r: Round, me: Int, onChoose: (Tile) -> Unit) {
+private fun Hand(vm: AppViewModel, r: Round, me: Int, @Suppress("UNUSED_PARAMETER") version: Int, onChoose: (Tile) -> Unit) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -253,7 +255,7 @@ private fun Hand(vm: AppViewModel, r: Round, me: Int, onChoose: (Tile) -> Unit) 
 }
 
 @Composable
-private fun SideChooser(r: Round, t: Tile, onPick: (Side) -> Unit, onCancel: () -> Unit) {
+private fun SideChooser(r: Round, t: Tile, @Suppress("UNUSED_PARAMETER") version: Int, onPick: (Side) -> Unit, onCancel: () -> Unit) {
     Column(Modifier.padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("Jogar ${Words.tile(t)} em qual ponta?")
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 6.dp)) {
@@ -266,7 +268,7 @@ private fun SideChooser(r: Round, t: Tile, onPick: (Side) -> Unit, onCancel: () 
 
 /** Modo mesmo aparelho: pedras ocultas até o jogador da vez tocar em "Mostrar pedras". */
 @Composable
-private fun Curtain(vm: AppViewModel) {
+private fun Curtain(vm: AppViewModel, @Suppress("UNUSED_PARAMETER") version: Int) {
     val r = vm.round ?: return
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.clearAndSetSemantics { }) {
@@ -286,7 +288,7 @@ private fun Curtain(vm: AppViewModel) {
 }
 
 @Composable
-private fun RoundOver(vm: AppViewModel, r: Round) {
+private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") version: Int) {
     val res = r.result ?: return
     val title = when {
         res.winner < 0 -> "Jogo trancado — empate"

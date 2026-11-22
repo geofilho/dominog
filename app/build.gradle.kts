@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.compose.compiler.gradle.ComposeFeatureFlag
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -33,6 +35,12 @@ android {
     kotlinOptions { jvmTarget = "17" }
     buildFeatures { compose = true }
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
+}
+
+// O estado da rodada é um objeto mutável; sem "strong skipping" o Compose sempre
+// redesenha as partes que recebem a rodada, evitando telas desatualizadas.
+composeCompiler {
+    featureFlags = setOf(ComposeFeatureFlag.StrongSkipping.disabled())
 }
 
 dependencies {
