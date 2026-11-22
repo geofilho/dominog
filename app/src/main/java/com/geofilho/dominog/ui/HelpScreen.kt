@@ -68,7 +68,9 @@ private fun helpBlocks(version: String): List<Block> {
                 "- Compartilhar jogo: abre o compartilhamento do Android com este texto, já com o número da versão " +
                 "mais recente e o link para baixar, para enviar aos amigos.\n" +
                 "- Ver relatório: mostra os dados do aparelho, do sistema, do Bluetooth e da voz, e pode ser copiado " +
-                "ou compartilhado, para ajudar a resolver problemas.",
+                "ou compartilhado, para ajudar a resolver problemas.\n" +
+                "- Silenciar sons do jogo: chave que cala os efeitos sonoros, como embaralhar, pedras, bipes, porta e " +
+                "aplausos. A fala do leitor de tela e a voz do jogo continuam. A escolha fica salva.",
         ),
 
         h("TELA DO JOGO, NA ORDEM DA VARREDURA"),

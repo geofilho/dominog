@@ -38,6 +38,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     val voice = Voice(app)
     val history = History(prefs)
     val updater = Updater(app)
+
+    /** Chave "Silenciar sons do jogo" (Diagnóstico): cala os efeitos, mantém as falas. */
+    var soundsMuted by mutableStateOf(prefs.getBoolean("sons_mudos", false)); private set
+
+    fun setSoundsMuted(m: Boolean) {
+        soundsMuted = m
+        sfx.muted = m
+        prefs.edit().putBoolean("sons_mudos", m).apply()
+        say(if (m) "Sons do jogo silenciados" else "Sons do jogo ativados", flush = true)
+    }
     var updateState by mutableStateOf<UpdateState>(UpdateState.Idle); private set
     val sfx = SoundFx()
     val link = BtLink(app)
@@ -80,6 +90,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var lobbyMessage by mutableStateOf<String?>(null)
 
     init {
+        sfx.muted = soundsMuted
         viewModelScope.launch { link.incoming.collect(::onMessage) }
         viewModelScope.launch {
             link.state.collect { st ->

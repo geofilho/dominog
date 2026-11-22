@@ -54,7 +54,11 @@ class SoundFx {
     /** Um bipe = passe para o Jogador 1; dois bipes = passe para o Jogador 2. */
     fun playBeeps(count: Int) = play(if (count == 1) beep1 else beep2)
 
+    /** Silencia todos os efeitos sonoros (a fala não é afetada). */
+    @Volatile var muted = false
+
     private fun play(pcm: ShortArray?) {
+        if (muted) return
         pcm ?: return
         scope.launch(Dispatchers.IO) {
             runCatching {

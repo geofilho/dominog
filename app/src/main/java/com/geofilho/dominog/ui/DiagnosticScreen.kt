@@ -19,7 +19,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Switch
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -79,6 +82,25 @@ fun DiagnosticScreen(vm: AppViewModel) {
             }
         }
         MenuButton("Ver relatório", Palette.AreaBorder) { report = buildReport(ctx, vm) }
+        // Chave: lida pelo TalkBack como "Silenciar sons do jogo, chave, ativada/desativada".
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 12.dp)
+                .heightIn(min = 56.dp)
+                .toggleable(value = vm.soundsMuted, role = Role.Switch) { vm.setSoundsMuted(it) }
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Silenciar sons do jogo", fontSize = 19.sp)
+                Text(
+                    "Cala embaralhar, pedras, bipes, porta e aplausos. As falas continuam.",
+                    fontSize = 14.sp, color = Palette.Text.copy(alpha = 0.75f),
+                )
+            }
+            Switch(checked = vm.soundsMuted, onCheckedChange = null)
+        }
         UpdateDialog(vm)
     }
 
