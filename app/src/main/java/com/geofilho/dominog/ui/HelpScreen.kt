@@ -27,9 +27,9 @@ private val HELP = listOf(
         "lembra os números que você não tem e tenta fechar o jogo para você. Toque numa pedra para jogar. Se ela encaixar nas duas pontas, " +
         "o jogo pergunta: esquerda ou direita. Se a pedra não encaixar, o jogo avisa.",
     "Jogar pelo Bluetooth" to
-        "Digite seu nome uma vez, ele fica salvo. Um dos dois toca em Criar sala. O outro toca em " +
-        "Procurar amigo e escolhe o aparelho do amigo na lista. Conectados, quem criou a sala toca em " +
-        "Iniciar jogo e o outro toca em Aceitar.",
+        "Digite seu nome uma vez, ele fica salvo. Se quiser, insira uma foto: escolha da galeria ou tire na hora " +
+        "com a câmera. Ao entrar, a sala já fica aberta. Um dos dois toca em Buscar amigo e escolhe o aparelho " +
+        "do amigo na lista. Conectados, qualquer um toca em Iniciar jogo e o outro toca em Aceitar.",
     "Jogar com um parceiro no mesmo aparelho" to
         "Jogador 1 e Jogador 2 usam o mesmo celular. O Jogador 1 começa: toca em Mostrar pedras para ver as suas. Depois de cada jogada as pedras ficam ocultas e a voz " +
         "diz: passe para o jogador dois. Um bipe indica o Jogador 1 e dois bipes o Jogador 2. O próximo toca em Mostrar pedras, ouve um som de abrir e a voz avisa: mostrando pedras.",

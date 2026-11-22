@@ -8,6 +8,16 @@ import android.os.Build
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -73,6 +83,14 @@ fun BluetoothScreen(vm: AppViewModel) {
     val scanning by link.scanning.collectAsState()
     var editingName by rememberSaveable { mutableStateOf(vm.playerName.isBlank()) }
     var pendingAction by remember { mutableStateOf<(() -> Unit)?>(null) }
+    var choosePhoto by remember { mutableStateOf(false) }
+    var discoverableAsked by rememberSaveable { mutableStateOf(false) }
+    val pickPhoto = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) vm.photoFromGallery(uri)
+    }
+    val takePhoto = rememberLauncherForActivityResult(ActivityResultContracts.TakePicturePreview()) { bmp ->
+        if (bmp != null) vm.setPhoto(bmp)
+    }
 
     fun hasPerms() = BT_PERMISSIONS.all { ContextCompat.checkSelfPermission(ctx, it) == PackageManager.PERMISSION_GRANTED }
 
@@ -117,7 +135,7 @@ fun BluetoothScreen(vm: AppViewModel) {
             CornerExitButton("Voltar", askBack)
         }
         Text(
-            "Jogar via Bluetooth", fontSize = 28.sp, fontWeight = FontWeight.Bold,
+            "Jogar pelo Bluetooth", fontSize = 28.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(vertical = 12.dp).semantics { heading() },
         )
         vm.lobbyMessage?.let {
@@ -129,39 +147,33 @@ fun BluetoothScreen(vm: AppViewModel) {
             return@Column
         }
 
-        Text("Seu nome: ${vm.playerName}", fontSize = 20.sp)
-        TextButton(onClick = { editingName = true }, enabled = state !is LinkState.Connected) { Text("Alterar nome") }
+        // Nome + foto
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            PlayerPhoto(vm.myPhoto, "Sua foto", 72.dp)
+            Column {
+                Text("Seu nome: ${vm.playerName}", fontSize = 20.sp)
+                Row {
+                    TextButton(onClick = { editingName = true }, enabled = state !is LinkState.Connected) { Text("Alterar nome") }
+                    TextButton(onClick = { choosePhoto = true }) { Text(if (vm.myPhoto == null) "Inserir foto" else "Trocar foto") }
+                }
+            }
+        }
         Spacer(Modifier.height(12.dp))
 
         when (val st = state) {
             LinkState.Connected -> Lobby(vm)
-            LinkState.Hosting -> {
-                CircularProgressIndicator()
-                Text(
-                    "Sala criada. Peça para seu amigo abrir \"Procurar amigo\" e escolher este aparelho.",
-                    textAlign = TextAlign.Center, modifier = Modifier.padding(16.dp),
-                )
-                OutlinedButton(onClick = { link.disconnect() }) { Text("Fechar sala") }
-            }
             is LinkState.Connecting -> {
                 CircularProgressIndicator()
                 Text("Conectando a ${st.name}…", modifier = Modifier.padding(16.dp))
             }
             else -> {
-                if (st is LinkState.Failed && vm.lobbyMessage == null) {
-                    Text(st.message, color = Palette.Status, textAlign = TextAlign.Center)
-                }
-                MenuButton("Criar sala", Palette.Start) {
-                    withBluetooth {
-                        vm.hostRoom()
-                        discoverable.launch(
-                            Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
-                                .putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300),
-                        )
-                    }
-                }
-                MenuButton(if (scanning) "Procurando…" else "Procurar amigo") {
-                    withBluetooth { vm.joinMode(); link.startScan() }
+                // A tela já é uma sala: este aparelho fica esperando o amigo enquanto procura.
+                Text(
+                    if (st == LinkState.Hosting) "Sala aberta. Aguardando seu amigo…" else "Abrindo a sala…",
+                    textAlign = TextAlign.Center, modifier = Modifier.padding(bottom = 8.dp),
+                )
+                MenuButton(if (scanning) "Buscando…" else "Buscar amigo", Palette.Start) {
+                    withBluetooth { link.startScan() }
                 }
                 if (found.isNotEmpty() || scanning) {
                     Text(
@@ -185,6 +197,49 @@ fun BluetoothScreen(vm: AppViewModel) {
                 }
             }
         }
+    }
+
+    // Abre a sala automaticamente (e reabre após uma conexão falhar ou terminar).
+    LaunchedEffect(state, editingName) {
+        if (editingName) return@LaunchedEffect
+        if (state == LinkState.Idle || state is LinkState.Failed) {
+            if (state is LinkState.Failed) kotlinx.coroutines.delay(1500)
+            withBluetooth {
+                vm.hostRoom()
+                if (!discoverableAsked) {
+                    discoverableAsked = true
+                    discoverable.launch(
+                        Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
+                            .putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300),
+                    )
+                }
+            }
+        }
+    }
+
+    if (choosePhoto) {
+        AlertDialog(
+            onDismissRequest = { choosePhoto = false },
+            title = { Text("Foto") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MenuButton("Escolher da galeria") {
+                        choosePhoto = false
+                        pickPhoto.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    }
+                    MenuButton("Tirar foto com a câmera") {
+                        choosePhoto = false
+                        runCatching { takePhoto.launch(null) }
+                            .onFailure { vm.lobbyMessage = "Não foi possível abrir a câmera." }
+                    }
+                    if (vm.myPhoto != null) MenuButton("Remover foto", Palette.AreaBorder) {
+                        choosePhoto = false; vm.setPhoto(null)
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { choosePhoto = false }) { Text("Cancelar") } },
+        )
     }
 
     if (vm.inviteReceived) {
@@ -220,19 +275,36 @@ private fun NameEditor(initial: String, onSave: (String) -> Unit) {
 @Composable
 private fun Lobby(vm: AppViewModel) {
     val friend = vm.friendName.ifBlank { "amigo" }
-    Text("Conectado com $friend", fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+    PlayerPhoto(vm.friendPhoto, "Foto de $friend", 96.dp)
+    Text(
+        "Conectado com $friend", fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+        modifier = Modifier.padding(top = 8.dp),
+    )
     Spacer(Modifier.height(16.dp))
-    if (vm.mode == Mode.BT_HOST) {
-        if (vm.waitingAccept) {
-            CircularProgressIndicator()
-            Text("Aguardando $friend aceitar…", modifier = Modifier.padding(12.dp))
-        } else {
-            MenuButton("Iniciar jogo", Palette.Start) { vm.invite() }
-        }
+    if (vm.waitingAccept) {
+        CircularProgressIndicator()
+        Text("Aguardando $friend aceitar…", modifier = Modifier.padding(12.dp))
     } else {
-        Text("Aguardando $friend iniciar o jogo…", textAlign = TextAlign.Center)
+        MenuButton("Iniciar jogo", Palette.Start) { vm.invite() }
     }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 20.dp)) {
-        OutlinedButton(onClick = { vm.backToMenu() }) { Text("Sair da sala") }
+    OutlinedButton(onClick = { vm.leaveRoom() }, modifier = Modifier.padding(top = 20.dp)) { Text("Desconectar") }
+}
+
+/** Foto redonda do jogador (ou um círculo com ícone de pessoa, se não tiver foto). */
+@Composable
+fun PlayerPhoto(photo: android.graphics.Bitmap?, description: String, size: androidx.compose.ui.unit.Dp) {
+    val mod = Modifier
+        .size(size)
+        .clip(CircleShape)
+        .background(Palette.AreaBorder)
+    if (photo != null) {
+        Image(
+            bitmap = photo.asImageBitmap(), contentDescription = description,
+            contentScale = ContentScale.Crop, modifier = mod,
+        )
+    } else {
+        Box(mod.clearAndSetSemantics { }, contentAlignment = Alignment.Center) {
+            Text("👤", fontSize = (size.value * 0.45f).sp)
+        }
     }
 }

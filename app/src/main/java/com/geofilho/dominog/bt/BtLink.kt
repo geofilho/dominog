@@ -201,6 +201,7 @@ class BtLink(context: Context) {
 /** Mensagens trocadas entre os aparelhos. */
 object Proto {
     const val HELLO = "HELLO"   // HELLO|nome
+    const val PHOTO = "PHOTO"   // PHOTO|jpeg em base64 (foto do jogador)
     const val INVITE = "INVITE" // anfitrião convida para começar
     const val ACCEPT = "ACCEPT"
     const val DECLINE = "DECLINE"

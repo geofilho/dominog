@@ -5,8 +5,9 @@ Jogo de dominó nativo (Kotlin + Jetpack Compose), para quem enxerga e adaptado 
 
 ## Modos
 - **Contra o computador** – o celular joga contra você.
-- **Bluetooth** – digite seu nome (fica salvo), um aparelho toca em *Criar sala*, o outro em
-  *Procurar amigo* e escolhe o aparelho. Quem criou a sala toca em *Iniciar jogo* e o outro *Aceita*.
+- **Bluetooth** – digite seu nome (fica salvo) e, se quiser, insira uma foto (galeria ou câmera). A tela já é
+  uma sala aberta: um dos dois toca em *Buscar amigo* e escolhe o aparelho. Qualquer um toca em *Iniciar jogo*
+  e o outro *Aceita*.
 - **Mesmo aparelho** – Jogador 1 e Jogador 2. Depois de cada jogada as pedras ficam ocultas e a voz diz
   "Passe para o jogador dois". O próximo toca em *Mostrar pedras*: som de abrir e a voz "Mostrando pedras".
 

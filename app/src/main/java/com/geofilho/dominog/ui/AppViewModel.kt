@@ -19,6 +19,7 @@ import com.geofilho.dominog.game.Round
 import com.geofilho.dominog.game.Side
 import com.geofilho.dominog.game.Tile
 import com.geofilho.dominog.game.Words
+import com.geofilho.dominog.profile.Avatar
 import com.geofilho.dominog.speech.Voice
 import com.geofilho.dominog.update.UpdateState
 import com.geofilho.dominog.update.Updater
@@ -58,6 +59,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // ---------- Bluetooth ----------
     var playerName by mutableStateOf(prefs.getString("name", "") ?: ""); private set
     var friendName by mutableStateOf(""); private set
+    var myPhoto by mutableStateOf(Avatar.load(app)); private set
+    var friendPhoto by mutableStateOf<android.graphics.Bitmap?>(null); private set
+
+    fun setPhoto(b: android.graphics.Bitmap?) {
+        val app = getApplication<Application>()
+        if (b == null) { Avatar.delete(app); myPhoto = null; say("Foto removida", flush = true); return }
+        myPhoto = Avatar.save(app, b)
+        say("Foto salva", flush = true)
+    }
+
+    fun photoFromGallery(uri: android.net.Uri) {
+        viewModelScope.launch {
+            val b = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Avatar.decode(getApplication(), uri) }
+            if (b != null) setPhoto(b) else say("Não foi possível abrir a foto", flush = true)
+        }
+    }
     var inviteReceived by mutableStateOf(false); private set
     var waitingAccept by mutableStateOf(false); private set
     var lobbyMessage by mutableStateOf<String?>(null)
@@ -68,11 +85,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             link.state.collect { st ->
                 when (st) {
                     LinkState.Connected -> {
+                        link.stopScan()
                         link.send("${Proto.HELLO}|$playerName")
+                        myPhoto?.let { link.send("${Proto.PHOTO}|${Avatar.encode(it)}") }
                         say("Conectado", flush = true)
                     }
                     is LinkState.Failed -> if (mode == Mode.BT_HOST || mode == Mode.BT_GUEST) {
-                        friendName = ""; inviteReceived = false; waitingAccept = false
+                        friendName = ""; friendPhoto = null; inviteReceived = false; waitingAccept = false
                         if (screen == Screen.GAME) {
                             screen = Screen.BLUETOOTH
                             lobbyMessage = st.message
@@ -120,7 +139,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (mode == Mode.BT_HOST || mode == Mode.BT_GUEST || screen == Screen.BLUETOOTH) {
             if (link.state.value == LinkState.Connected) link.send(Proto.BYE)
             link.disconnect()
-            friendName = ""; inviteReceived = false; waitingAccept = false
+            friendName = ""; friendPhoto = null; inviteReceived = false; waitingAccept = false
         }
         round = null
         screen = Screen.MENU
@@ -462,7 +481,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // =================== Bluetooth ===================
-    fun hostRoom() { mode = Mode.BT_HOST; lobbyMessage = null; link.host() }
+    /** A tela do Bluetooth já é uma sala: fica aguardando conexão (anfitrião). */
+    fun hostRoom() { mode = Mode.BT_HOST; link.host() }
+
+    /** Desconecta do amigo e volta a deixar a sala aberta. */
+    fun leaveRoom() {
+        if (link.state.value == LinkState.Connected) link.send(Proto.BYE)
+        link.disconnect()
+        friendName = ""; friendPhoto = null; inviteReceived = false; waitingAccept = false
+    }
     fun joinMode() { mode = Mode.BT_GUEST; lobbyMessage = null }
 
     fun invite() {
@@ -474,6 +501,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun answerInvite(accept: Boolean) {
         inviteReceived = false
         link.send(if (accept) Proto.ACCEPT else Proto.DECLINE)
+        // Quem recebeu a conexão (anfitrião) comanda o jogo: se ele aceitou, já distribui.
+        if (accept && mode == Mode.BT_HOST) newMatch()
     }
 
     private fun broadcast() {
@@ -485,6 +514,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun onMessage(line: String) {
         val parts = line.split('|')
         when (parts[0]) {
+            Proto.PHOTO -> friendPhoto = parts.getOrNull(1)?.let(Avatar::decodeBase64)
             Proto.HELLO -> {
                 friendName = parts.getOrNull(1).orEmpty().ifBlank { "Amigo" }
                 say("$friendName entrou na sala")
@@ -493,9 +523,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 inviteReceived = true
                 say("$friendName quer começar o jogo. Aceitar?", flush = true)
             }
-            Proto.ACCEPT -> if (mode == Mode.BT_HOST) {
+            Proto.ACCEPT -> {
                 waitingAccept = false
-                newMatch()
+                // Se o convidado convidou e o anfitrião aceitou, o estado chega em seguida.
+                if (mode == Mode.BT_HOST) newMatch()
             }
             Proto.DECLINE -> {
                 waitingAccept = false
@@ -514,7 +545,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 lobbyMessage = "$friendName saiu do jogo"
                 say(lobbyMessage!!, flush = true)
                 link.disconnect()
-                friendName = ""
+                friendName = ""; friendPhoto = null
                 if (screen == Screen.GAME) { round = null; screen = Screen.BLUETOOTH }
             }
         }
