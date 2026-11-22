@@ -6,6 +6,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -69,6 +72,8 @@ import kotlin.random.Random
 @Composable
 fun GameScreen(vm: AppViewModel) {
     val askExit = rememberConfirm("Deseja sair do jogo?") { vm.backToMenu() }
+    val screenReader = rememberScreenReaderOn()
+    vm.screenReaderOn = screenReader
     BackHandler { askExit() }
     // A rodada é um objeto mutável: [v] muda a cada jogada e é passado às partes da tela
     // para que o Compose as redesenhe (senão ele reaproveita o desenho antigo).
@@ -195,7 +200,7 @@ fun GameScreen(vm: AppViewModel) {
         }
 
         // Só para quem usa leitor de tela.
-        if (rememberScreenReaderOn()) {
+        if (screenReader) {
             OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 4.dp)) {
                 Text("Ouvir mesa")
             }
@@ -304,9 +309,20 @@ private fun Curtain(vm: AppViewModel, @Suppress("UNUSED_PARAMETER") version: Int
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.clearAndSetSemantics { }) {
             repeat(r.hands[r.current].size) { DominoTile(0, 0, vertical = true, unit = 22.dp, faceDown = true) }
         }
+        // Depois das informações da jogada, o foco do TalkBack vem para este aviso.
+        val focus = remember { FocusRequester() }
+        val seen = remember { vm.curtainFocus }
+        LaunchedEffect(vm.curtainFocus) {
+            if (vm.curtainFocus != seen) runCatching { focus.requestFocus() }
+        }
         Text(
-            "Vez do ${vm.nameOf(r.current)}. Passe o aparelho.",
-            fontSize = 18.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 10.dp),
+            "Passe para o ${vm.nameOf(r.current)}",
+            fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
+            modifier = Modifier
+                .padding(vertical = 10.dp)
+                .focusRequester(focus)
+                .focusable()
+                .semantics { heading() },
         )
         Button(
             onClick = { vm.reveal() },

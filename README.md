@@ -8,7 +8,7 @@ Jogo de dominó nativo (Kotlin + Jetpack Compose), para quem enxerga e adaptado 
 - **Bluetooth** – digite seu nome (fica salvo), um aparelho toca em *Criar sala*, o outro em
   *Procurar amigo* e escolhe o aparelho. Quem criou a sala toca em *Iniciar jogo* e o outro *Aceita*.
 - **Mesmo aparelho** – Jogador 1 e Jogador 2. Depois de cada jogada as pedras ficam ocultas e a voz diz
-  "Jogador dois, agora sua vez". O próximo toca em *Mostrar pedras* e a voz avisa "Pedras visíveis".
+  "Passe para o jogador dois". O próximo toca em *Mostrar pedras*: som de abrir e a voz "Mostrando pedras".
 
 ## Regras (2 jogadores)
 28 pedras (duplo-seis), 7 para cada, 14 no monte. Na primeira rodada quem começa é sorteado; depois começa quem venceu.

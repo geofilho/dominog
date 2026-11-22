@@ -24,6 +24,7 @@ class SoundFx {
     @Volatile private var shuffle: ShortArray? = null
     @Volatile private var draw: ShortArray? = null
     @Volatile private var applause: ShortArray? = null
+    @Volatile private var open: ShortArray? = null
     private val attrs = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_GAME)
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -36,6 +37,7 @@ class SoundFx {
             draw = synthClack(rnd, 0.45f, 2300f)
             shuffle = synthShuffle(rnd)
             applause = synthApplause(rnd)
+            open = synthOpen(rnd)
         }
     }
 
@@ -43,6 +45,8 @@ class SoundFx {
     fun playDraw() = play(draw)
     fun playShuffle() = play(shuffle)
     fun playApplause() = play(applause)
+    /** Som de "abrir" (porta rangendo + trinco), usado em Mostrar pedras. */
+    fun playOpen() = play(open)
 
     private fun play(pcm: ShortArray?) {
         pcm ?: return
@@ -90,6 +94,36 @@ class SoundFx {
                 out[i] = (v.coerceIn(-1f, 1f) * 26000).toInt().toShort()
             }
             return out
+        }
+
+        /** ~0,7 s: trinco destravando, rangido subindo de tom e um sopro de ar (porta abrindo). */
+        fun synthOpen(rnd: Random): ShortArray {
+            val n = (RATE * 0.7).toInt()
+            val mix = FloatArray(n)
+            // trinco
+            val click = synthClack(rnd, 0.5f, 1800f)
+            for (j in click.indices) mix[j] += click[j] / 26000f
+            // rangido: dente-de-serra com tom subindo e pequenas irregularidades
+            var phase = 0f
+            val start = (RATE * 0.06).toInt()
+            for (i in start until n) {
+                val t = (i - start) / (n - start).toFloat()
+                val f = 170f + 260f * t + (rnd.nextFloat() - 0.5f) * 40f
+                phase += f / RATE
+                if (phase > 1f) phase -= 1f
+                val saw = phase * 2 - 1
+                val grain = if (rnd.nextFloat() < 0.6f) 1f else 0.4f // aspereza do rangido
+                val env = sin(PI * t).toFloat()
+                mix[i] += saw * grain * env * 0.22f
+            }
+            // sopro de ar
+            var lp = 0f
+            for (i in 0 until n) {
+                val t = i / n.toFloat()
+                lp += (0.02f + 0.2f * t) * ((rnd.nextFloat() * 2 - 1) - lp)
+                mix[i] += lp * sin(PI * t).toFloat() * 0.5f
+            }
+            return ShortArray(n) { (mix[it].coerceIn(-1f, 1f) * 26000).toInt().toShort() }
         }
 
         /** ~3 s de aplausos: centenas de palmas curtas (ruído filtrado) sobrepostas. */

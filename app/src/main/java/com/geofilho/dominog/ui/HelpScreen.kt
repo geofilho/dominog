@@ -32,7 +32,7 @@ private val HELP = listOf(
         "Iniciar jogo e o outro toca em Aceitar.",
     "Jogar com um parceiro no mesmo aparelho" to
         "Jogador 1 e Jogador 2 usam o mesmo celular. O Jogador 1 começa, já com as pedras à mostra. Depois de cada jogada as pedras ficam ocultas e a voz " +
-        "diz de quem é a vez. Passe o aparelho; o próximo toca em Mostrar pedras e a voz avisa: pedras visíveis.",
+        "diz: passe para o jogador dois. O próximo toca em Mostrar pedras, ouve um som de abrir e a voz avisa: mostrando pedras.",
     "Regras" to
         "São 28 pedras, 7 para cada jogador. Na primeira rodada quem começa é sorteado; depois, começa quem venceu. " +
         "Sem pedra que encaixe, toque em Comprar pedra; se o monte acabar, toque em Passar vez. " +

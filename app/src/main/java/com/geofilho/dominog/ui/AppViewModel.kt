@@ -179,9 +179,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun reveal() {
         revealed = true
         val r = round
-        say("Pedras visíveis." + (if (r != null) hintFor(r, r.current) else ""), flush = true)
+        voice.stop()
+        sfx.playOpen()
         bump()
+        val text = "Mostrando pedras." + (if (r != null) hintFor(r, r.current) else "")
+        status = text
+        // A voz entra logo depois do som de abrir.
+        viewModelScope.launch { delay(550); voice.speak(text, flush = true) }
     }
+
+    /** Informado pela tela: leitor de tela (TalkBack) ligado. */
+    var screenReaderOn = false
+
+    /** Incrementa quando o foco do TalkBack deve ir para o aviso "Passe para o jogador…". */
+    var curtainFocus by mutableIntStateOf(0); private set
 
     fun sidesFor(t: Tile): List<Side> = round?.sidesFor(t) ?: emptyList()
 
@@ -277,14 +288,25 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun announceTurn(r: Round, newRound: Boolean) {
         val p = r.current
         val text = when (mode) {
-            Mode.LOCAL -> "${spokenName(p)}, agora sua vez"
+            Mode.LOCAL -> ""
             Mode.CPU -> if (p == 0) "Sua vez" else if (newRound) "Computador começa" else ""
             else -> if (p == me) "Sua vez" else if (newRound) "${nameOf(p)} começa" else ""
         }
-        val mine = mode == Mode.LOCAL || p == me
-        if (mine && mode == Mode.LOCAL) {
-            say(text) // a dica de compra só é dita depois de mostrar as pedras
-        } else say(text + if (mine) "." + hintFor(r, p) else "")
+        if (mode == Mode.LOCAL) {
+            if (revealed) {
+                // Início da partida: o Jogador 1 (ou quem bateu) já está com o aparelho.
+                say("${spokenName(p)}, sua vez." + hintFor(r, p))
+                return
+            }
+            val pass = "Passe para o ${spokenName(p).lowercase()}"
+            // Com TalkBack, o próprio leitor fala o aviso quando o foco chega nele
+            // (depois das outras informações); sem TalkBack, fala a voz do app.
+            if (screenReaderOn) status = pass else say(pass)
+            voice.afterQueue { curtainFocus++ }
+            return
+        }
+        val mine = p == me
+        say(text + if (mine) "." + hintFor(r, p) else "")
     }
 
     /** Partida = melhor de 5: vence quem ganhar [WINS_TO_MATCH] rodadas primeiro. */
