@@ -64,7 +64,8 @@ private val BT_PERMISSIONS: Array<String> =
 
 @Composable
 fun BluetoothScreen(vm: AppViewModel) {
-    BackHandler { vm.backToMenu() }
+    val askBack = rememberConfirm("Deseja voltar ao menu?") { vm.backToMenu() }
+    BackHandler { askBack() }
     val ctx = LocalContext.current
     val link = vm.link
     val state by link.state.collectAsState()
@@ -113,7 +114,7 @@ fun BluetoothScreen(vm: AppViewModel) {
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             Spacer(Modifier.weight(1f))
-            CornerExitButton("Voltar") { vm.backToMenu() }
+            CornerExitButton("Voltar", askBack)
         }
         Text(
             "Jogar via Bluetooth", fontSize = 28.sp, fontWeight = FontWeight.Bold,

@@ -68,7 +68,8 @@ import kotlin.random.Random
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun GameScreen(vm: AppViewModel) {
-    BackHandler { vm.backToMenu() }
+    val askExit = rememberConfirm("Deseja sair do jogo?") { vm.backToMenu() }
+    BackHandler { askExit() }
     // A rodada é um objeto mutável: [v] muda a cada jogada e é passado às partes da tela
     // para que o Compose as redesenhe (senão ele reaproveita o desenho antigo).
     val v = vm.version
@@ -114,7 +115,7 @@ fun GameScreen(vm: AppViewModel) {
                     },
             )
             Spacer(Modifier.weight(1f))
-            CornerExitButton("Sair do jogo") { vm.backToMenu() }
+            CornerExitButton("Sair do jogo", askExit)
         }
         Spacer(Modifier.height(6.dp))
         // Linha de status amarela (só visual: a voz do app já fala tudo, o TalkBack não repete).
