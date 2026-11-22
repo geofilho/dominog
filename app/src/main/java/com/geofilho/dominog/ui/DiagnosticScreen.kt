@@ -94,7 +94,7 @@ fun DiagnosticScreen(vm: AppViewModel) {
                     TextButton(onClick = {
                         val cb = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         cb.setPrimaryClip(ClipData.newPlainText("Relatório Dominó G", text))
-                        vm.voice.speak("Relatório copiado", flush = true)
+                        if (vm.screenReaderOn) vm.voice.speak("Relatório copiado", flush = true)
                     }) { Text("Copiar") }
                     TextButton(onClick = {
                         val send = Intent(Intent.ACTION_SEND).setType("text/plain")

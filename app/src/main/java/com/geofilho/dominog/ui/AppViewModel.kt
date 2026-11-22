@@ -85,6 +85,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             link.state.collect { st ->
                 when (st) {
                     LinkState.Connected -> {
+                        // O papel vem da própria conexão: quem recebeu é o anfitrião (comanda o jogo).
+                        mode = if (link.isHost) Mode.BT_HOST else Mode.BT_GUEST
                         link.stopScan()
                         link.send("${Proto.HELLO}|$playerName")
                         myPhoto?.let { link.send("${Proto.PHOTO}|${Avatar.encode(it)}") }
@@ -461,10 +463,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Última mensagem anunciada (mostrada na linha de status, como no modelo). */
     var status by mutableStateOf(""); private set
 
+    /**
+     * Avisos falados: só com leitor de tela ligado. Sem leitor, aparecem só na linha de status.
+     * (No modo parceiro, "Mostrando pedras" e "Passe para o jogador" falam sempre; eles usam voice.speak direto.)
+     */
     private fun say(text: String, flush: Boolean = false) {
         if (text.isBlank()) return
         status = text.trim()
-        voice.speak(text, flush)
+        if (screenReaderOn) voice.speak(text, flush)
     }
 
     /** Toque numa pedra da mão: joga se só houver um lado, avisa se não encaixa. */

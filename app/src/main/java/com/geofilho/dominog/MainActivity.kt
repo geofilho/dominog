@@ -13,6 +13,7 @@ import com.geofilho.dominog.ui.GameScreen
 import com.geofilho.dominog.ui.HelpScreen
 import com.geofilho.dominog.ui.MenuScreen
 import com.geofilho.dominog.ui.Screen
+import com.geofilho.dominog.ui.rememberScreenReaderOn
 
 class MainActivity : ComponentActivity() {
     private val vm: AppViewModel by viewModels()
@@ -22,6 +23,8 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             DominoTheme {
+                // Sem leitor de tela, a voz do app fica em silêncio (exceto avisos do modo parceiro).
+                vm.screenReaderOn = rememberScreenReaderOn()
                 when (vm.screen) {
                     Screen.MENU -> MenuScreen(vm)
                     Screen.BLUETOOTH -> BluetoothScreen(vm)

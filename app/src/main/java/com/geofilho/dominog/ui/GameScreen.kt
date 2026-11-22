@@ -73,7 +73,6 @@ import kotlin.random.Random
 fun GameScreen(vm: AppViewModel) {
     val askExit = rememberConfirm("Deseja sair do jogo?") { vm.backToMenu() }
     val screenReader = rememberScreenReaderOn()
-    vm.screenReaderOn = screenReader
     BackHandler { askExit() }
     // A rodada é um objeto mutável: [v] muda a cada jogada e é passado às partes da tela
     // para que o Compose as redesenhe (senão ele reaproveita o desenho antigo).

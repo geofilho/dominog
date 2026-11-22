@@ -62,6 +62,10 @@ class BtLink(context: Context) {
     private var out: OutputStream? = null
     private var ioJob: Job? = null
     private var receiverRegistered = false
+    /** Muda a cada nova tentativa (sala/conexão); evita que uma tentativa antiga mexa no estado. */
+    @Volatile private var generation = 0
+    /** true = este aparelho recebeu a conexão (anfitrião); false = conectou no amigo (convidado). */
+    @Volatile var isHost = false; private set
 
     val available get() = adapter != null
     val enabled get() = adapter?.isEnabled == true
@@ -115,17 +119,21 @@ class BtLink(context: Context) {
     fun host() {
         val a = adapter ?: return fail("Bluetooth indisponível")
         closeSockets()
+        val gen = ++generation
         _state.value = LinkState.Hosting
         scope.launch {
             try {
                 val srv = a.listenUsingRfcommWithServiceRecord(SERVICE_NAME, APP_UUID)
+                if (gen != generation) { runCatching { srv.close() }; return@launch }
                 server = srv
                 val s = srv.accept()
                 runCatching { srv.close() }
                 server = null
-                attach(s)
+                if (gen != generation) { runCatching { s.close() }; return@launch }
+                attach(s, host = true)
             } catch (e: Exception) {
-                if (_state.value is LinkState.Hosting) fail("Sala encerrada")
+                // Sala fechada de propósito (ex.: foi conectar no amigo) não é erro.
+                if (gen == generation) fail("Sala encerrada")
             }
         }
     }
@@ -133,20 +141,23 @@ class BtLink(context: Context) {
     /** Entra na sala de um amigo encontrado na busca. */
     fun join(dev: FoundDevice) {
         stopScan()
+        val gen = ++generation
         closeSockets()
         _state.value = LinkState.Connecting(dev.name)
         scope.launch {
             try {
                 val s = dev.device.createRfcommSocketToServiceRecord(APP_UUID)
                 s.connect()
-                attach(s)
+                if (gen != generation) { runCatching { s.close() }; return@launch }
+                attach(s, host = false)
             } catch (e: Exception) {
-                fail("Não foi possível conectar a ${dev.name}. Confirme que ele criou a sala.")
+                if (gen == generation) fail("Não foi possível conectar a ${dev.name}. Confirme que ele está na tela do Bluetooth.")
             }
         }
     }
 
-    private fun attach(s: BluetoothSocket) {
+    private fun attach(s: BluetoothSocket, host: Boolean) {
+        isHost = host
         socket = s
         out = s.outputStream
         _state.value = LinkState.Connected
@@ -187,6 +198,7 @@ class BtLink(context: Context) {
     }
 
     fun disconnect() {
+        generation++
         stopScan()
         closeSockets()
         _state.value = LinkState.Idle
