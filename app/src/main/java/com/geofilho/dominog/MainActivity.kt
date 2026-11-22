@@ -7,6 +7,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import com.geofilho.dominog.ui.AppViewModel
 import com.geofilho.dominog.ui.BluetoothScreen
+import com.geofilho.dominog.ui.DiagnosticScreen
 import com.geofilho.dominog.ui.DominoTheme
 import com.geofilho.dominog.ui.GameScreen
 import com.geofilho.dominog.ui.HelpScreen
@@ -26,6 +27,7 @@ class MainActivity : ComponentActivity() {
                     Screen.BLUETOOTH -> BluetoothScreen(vm)
                     Screen.GAME -> GameScreen(vm)
                     Screen.HELP -> HelpScreen(vm)
+                    Screen.DIAGNOSTIC -> DiagnosticScreen(vm)
                 }
             }
         }

@@ -27,7 +27,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-enum class Screen { MENU, BLUETOOTH, GAME, HELP }
+enum class Screen { MENU, BLUETOOTH, GAME, HELP, DIAGNOSTIC }
 
 /** Rodadas vencidas para ganhar a partida (melhor de 5). */
 const val WINS_TO_MATCH = 3
@@ -132,6 +132,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun startLocal() { mode = Mode.LOCAL; newMatch() }
     fun openBluetooth() { screen = Screen.BLUETOOTH; lobbyMessage = null }
     fun openHelp() { screen = Screen.HELP }
+    fun openDiagnostic() { screen = Screen.DIAGNOSTIC }
 
     fun backToMenu() {
         cpuJob?.cancel()

@@ -20,6 +20,7 @@ class Voice(context: Context) : TextToSpeech.OnInitListener {
     private val callbacks = ConcurrentHashMap<String, () -> Unit>()
     private val ids = AtomicInteger()
     var enabled = true
+    val isReady: Boolean get() = ready
 
     override fun onInit(status: Int) {
         if (status != TextToSpeech.SUCCESS) {

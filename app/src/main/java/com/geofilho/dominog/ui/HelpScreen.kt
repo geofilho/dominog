@@ -1,6 +1,5 @@
 package com.geofilho.dominog.ui
 
-import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -15,7 +14,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
@@ -64,12 +62,13 @@ private fun helpBlocks(version: String): List<Block> {
         ),
         p("4. Como usar: abre este texto."),
         p(
-            "5. Verificar atualização: procura versão nova. Se houver, mostra as novidades e pergunta se quer baixar " +
-                "e instalar. O botão também informa a versão instalada.",
-        ),
-        p(
-            "6. Compartilhar jogo: abre o compartilhamento do Android com este texto, já com o número da versão mais " +
-                "recente e o link para baixar, para enviar aos amigos pelo WhatsApp, e-mail ou outro aplicativo.",
+            "5. Diagnóstico: abre uma página com estas opções.\n" +
+                "- Verificar atualização: procura versão nova. Se houver, mostra as novidades e pergunta se quer " +
+                "baixar e instalar. O botão também informa a versão instalada.\n" +
+                "- Compartilhar jogo: abre o compartilhamento do Android com este texto, já com o número da versão " +
+                "mais recente e o link para baixar, para enviar aos amigos.\n" +
+                "- Ver relatório: mostra os dados do aparelho, do sistema, do Bluetooth e da voz, e pode ser copiado " +
+                "ou compartilhado, para ajudar a resolver problemas.",
         ),
 
         h("TELA DO JOGO, NA ORDEM DA VARREDURA"),
@@ -180,7 +179,7 @@ private fun helpBlocks(version: String): List<Block> {
         ),
 
         h("COMO ATUALIZAR"),
-        p("1. No aplicativo, toque em \"Verificar atualização\", na tela principal."),
+        p("1. No aplicativo, toque em Diagnóstico, na tela principal, e depois em \"Verificar atualização\"."),
         p(
             "2. Se houver versão nova, aparecem as novidades e os botões \"OK, baixar\" e \"Cancelar\". Toque em " +
                 "\"OK, baixar\".",
@@ -203,7 +202,6 @@ fun helpPlainText(version: String): String = helpBlocks(version).joinToString("\
 @Composable
 fun HelpScreen(vm: AppViewModel) {
     BackHandler { vm.backToMenu() }
-    val ctx = LocalContext.current
     val version = vm.updater.installedVersionName
     Column(
         Modifier
@@ -233,12 +231,6 @@ fun HelpScreen(vm: AppViewModel) {
                     modifier = Modifier.padding(vertical = 5.dp),
                 )
             }
-        }
-        MenuButton("Compartilhar este aplicativo com amigos", Palette.Start) {
-            val send = Intent(Intent.ACTION_SEND)
-                .setType("text/plain")
-                .putExtra(Intent.EXTRA_TEXT, helpPlainText(version))
-            ctx.startActivity(Intent.createChooser(send, "Compartilhar o Dominó G"))
         }
     }
 }
