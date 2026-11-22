@@ -102,9 +102,7 @@ private fun helpBlocks(version: String): List<Block> {
         p(
             "8. Comprar pedra: é o último item da tela, depois de Ouvir mesa. Fica sempre no mesmo lugar e só " +
                 "funciona quando você não tem pedra que encaixe; fora disso, o TalkBack lê desativado. Com o monte " +
-                "vazio (ou com 4 jogadores), vira Passar vez. Quando você precisa comprar, o foco do TalkBack vai para ele."), ele vira " +
-                "Passar vez. Quando você precisa comprar, o foco do TalkBack vai para ele. A pedra comprada entra no fim " +
-                "da sua mão, logo antes do botão: um toque para a esquerda chega nela.",
+                "vazio (ou com 4 jogadores), vira Passar vez. Quando você precisa comprar, o foco do TalkBack vai para ele.",
         ),
         p(
             "9. Sair do jogo: não há botão de sair na tela, para não ser tocado sem querer durante a partida. " +
