@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.TextButton
@@ -77,7 +79,7 @@ fun MenuScreen(vm: AppViewModel) {
         MenuButton("Jogar pelo Bluetooth", Palette.Action) { vm.openBluetooth() }
         MenuButton("Jogar com um parceiro no mesmo aparelho", Palette.Action) { vm.startLocal() }
         MenuButton("Como usar", Palette.AreaBorder) { vm.openHelp() }
-        MenuButton("Atualizar", Palette.AreaBorder) { vm.checkUpdate() }
+        MenuButton("Verificar atualização (versão ${vm.updater.installedVersionName})", Palette.AreaBorder) { vm.checkUpdate() }
         UpdateDialog(vm)
     }
 }
@@ -98,18 +100,29 @@ fun MenuButton(label: String, color: Color = Palette.Action, onClick: () -> Unit
 
 @Composable
 private fun UpdateDialog(vm: AppViewModel) {
+    // Ao voltar das configurações de "instalar apps", continua a instalação sozinha.
+    val owner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(owner) {
+        val obs = androidx.lifecycle.LifecycleEventObserver { _, e ->
+            if (e == androidx.lifecycle.Lifecycle.Event.ON_RESUME) vm.resumeInstallIfAllowed()
+        }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
     val st = vm.updateState
     if (st == UpdateState.Idle) return
     val dismiss = { vm.dismissUpdate() }
     val (msg, action) = when (st) {
         UpdateState.Checking -> "Verificando atualização…" to null
         UpdateState.UpToDate -> "Você já tem a versão mais recente." to null
-        is UpdateState.Available -> "Nova versão disponível (1.0.${st.version}). Deseja baixar e instalar?" to
-            ("Baixar e instalar" to { vm.downloadUpdate() })
+        is UpdateState.Available ->
+            ("Nova versão 1.0.${st.version} disponível. Você tem a ${vm.updater.installedVersionName}." +
+                (st.notes?.let { "\n\nNovidades:\n$it" } ?: "") + "\n\nDeseja baixar e instalar?") to
+                ("OK, baixar" to { vm.downloadUpdate() })
         is UpdateState.Downloading -> "Baixando… ${st.percent}%" to null
         is UpdateState.NeedPermission ->
-            "Para instalar, permita que o Dominó G instale aplicativos. Toque em Permitir, ative a opção, volte e toque em Instalar." to
-                ("Instalar" to { vm.installUpdate(st.file) })
+            "Para instalar, permita que o Dominó G instale aplicativos. Toque em Abrir configuração, ative a opção e volte, que a instalação continua sozinha." to
+                ("Abrir configuração" to { vm.openInstallPermission() })
         is UpdateState.Failed -> st.message to null
         UpdateState.Idle -> return
     }
@@ -118,10 +131,7 @@ private fun UpdateDialog(vm: AppViewModel) {
         title = { Text("Atualizar") },
         text = {
             Column {
-                Text(msg, fontSize = 17.sp)
-                if (st is UpdateState.NeedPermission) {
-                    TextButton(onClick = { vm.openInstallPermission() }) { Text("Permitir") }
-                }
+                Text(msg, fontSize = 17.sp, modifier = Modifier.heightIn(max = 360.dp).verticalScroll(rememberScrollState()))
             }
         },
         confirmButton = {

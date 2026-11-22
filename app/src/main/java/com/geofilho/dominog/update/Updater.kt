@@ -25,6 +25,18 @@ class Updater(private val context: Context) {
             context.packageManager.getPackageInfo(context.packageName, 0),
         )
 
+    val installedVersionName: String
+        get() = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "?"
+
+    /** Novidades da versão publicada (texto do último commit). */
+    suspend fun latestNotes(): String? = withContext(Dispatchers.IO) {
+        runCatching {
+            open(base + "novidades.txt").run {
+                try { inputStream.bufferedReader().readText().trim() } finally { disconnect() }
+            }
+        }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
     private fun open(url: String): HttpURLConnection {
         var u = URL(url)
         // Segue redirecionamentos manualmente (o GitHub redireciona para outro domínio).

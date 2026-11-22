@@ -408,12 +408,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             val latest = updater.latestVersion()
             updateState = when {
                 latest == null -> UpdateState.Failed("Não foi possível verificar. Confira a internet e tente de novo.")
-                latest > updater.installedVersion -> UpdateState.Available(latest)
+                latest > updater.installedVersion -> UpdateState.Available(latest, updater.latestNotes())
                 else -> UpdateState.UpToDate
             }
             say(
                 when (val s = updateState) {
-                    is UpdateState.Available -> "Nova versão disponível. Deseja baixar e instalar?"
+                    is UpdateState.Available -> "Nova versão 1.0.${s.version} disponível."
                     UpdateState.UpToDate -> "Você já tem a versão mais recente."
                     is UpdateState.Failed -> s.message
                     else -> ""
@@ -440,7 +440,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun installUpdate(file: java.io.File) {
         if (!updater.canInstall()) {
             updateState = UpdateState.NeedPermission(file)
-            say("Para instalar, permita que o Dominó G instale aplicativos. Depois volte e toque em Instalar.", flush = true)
+            say("Para instalar, permita que o Dominó G instale aplicativos. Ative a opção e volte, que a instalação continua sozinha.", flush = true)
             return
         }
         updateState = UpdateState.Idle
@@ -449,6 +449,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun openInstallPermission() = updater.openInstallPermissionSettings()
+
+    /** Ao voltar das configurações: se a permissão foi dada, a instalação continua sozinha. */
+    fun resumeInstallIfAllowed() {
+        val s = updateState
+        if (s is UpdateState.NeedPermission && updater.canInstall()) installUpdate(s.file)
+    }
     fun dismissUpdate() { updateState = UpdateState.Idle }
 
     /** Última mensagem anunciada (mostrada na linha de status, como no modelo). */
