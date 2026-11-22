@@ -75,3 +75,15 @@ jobs:
             version.txt
             novidades.txt
             commit.txt
+      # Guarda também cada versão numa publicação própria (o link da última versão não muda).
+      - name: Guardar esta versão (histórico)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Dominó G 1.0.${{ github.run_number }}
+          prerelease: false
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          body_path: novidades.txt
+          files: |
+            DominoG.apk
