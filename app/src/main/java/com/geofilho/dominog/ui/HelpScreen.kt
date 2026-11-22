@@ -113,15 +113,47 @@ private fun helpBlocks(version: String): List<Block> {
                 "O jogo pergunta \"Deseja sair do jogo?\": toque em Sim para voltar ao menu ou em Não para continuar jogando.",
         ),
         p(
-            "Para onde vai o foco do TalkBack: no começo de cada rodada, depois da leitura, o foco desce para o " +
-                "título Suas pedras, e o mesmo acontece logo depois que você joga uma pedra. Quando você compra uma pedra que encaixa, o foco vai direto para ela. No fim da rodada, depois da leitura do resultado, o foco vai para a frase do " +
-                "resultado, como Você bateu.\n\n" +
-                "O que o jogo fala e toca:\n" +
+            "O que o jogo fala e toca:\n" +
                 "- No começo de cada rodada, o som das pedras sendo embaralhadas na mesa.\n" +
                 "- A cada jogada, o som da pedra batendo na mesa, e a voz diz quem jogou, qual pedra e as pontas.\n" +
                 "- Ao comprar, um som de pedra e o aviso de quem comprou.\n" +
                 "- Quando alguém vence a rodada, aplausos.\n" +
                 "- Para quem enxerga, a linha amarela no alto da tela mostra o último aviso.",
+        ),
+
+        h("COMO O FOCO DO TALKBACK FUNCIONA NO JOGO"),
+        p(
+            "Com o TalkBack ligado, o jogo leva o foco para o lugar certo em cada momento, para você não precisar " +
+                "procurar na tela. O foco só muda depois que a voz do jogo termina de falar.",
+        ),
+        p(
+            "1. Começo da rodada: a voz avisa quem começa e o foco desce para o título Suas pedras. Basta deslizar " +
+                "da esquerda para a direita para ir lendo as suas pedras, uma por uma.",
+        ),
+        p(
+            "2. Depois que você joga: a pedra jogada sai da sua mão e o foco volta para o título Suas pedras. " +
+                "Deslize para a direita e você já está nas pedras que sobraram. Enquanto o adversário joga, o foco " +
+                "fica ali, sem pular para a mesa.",
+        ),
+        p(
+            "3. Quando nenhuma pedra sua encaixa: depois do aviso, o foco vai direto para o botão Comprar pedra, que " +
+                "fica no fim da tela, depois de Ouvir mesa. Toque duas vezes para comprar. Se a pedra comprada também " +
+                "não servir, o foco continua no botão, e é só tocar de novo. Com o monte vazio, o botão é Passar vez.",
+        ),
+        p(
+            "4. Quando a pedra comprada encaixa: a voz diz qual pedra você comprou e o foco vai direto para ela. " +
+                "Toque duas vezes para jogar.",
+        ),
+        p(
+            "5. Quando a pedra encaixa nas duas pontas: abre uma janela perguntando ponta esquerda ou ponta direita, " +
+                "já com o foco nela.",
+        ),
+        p(
+            "6. Fim da rodada: a voz fala o resultado e o placar, e o foco vai para a frase do resultado, como Você " +
+                "bateu. Logo abaixo ficam as pedras que sobraram com cada um e o botão Próxima rodada.",
+        ),
+        p(
+            "7. Para saber como está o jogo a qualquer momento, deslize até Ouvir mesa, no fim da tela, e toque duas vezes.",
         ),
 
         h("JOGAR PELO BLUETOOTH"),
