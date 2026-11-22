@@ -227,10 +227,12 @@ fun GameScreen(vm: AppViewModel) {
             }
         }
         // Sua vez sem pedra que encaixe: foco no Comprar/Passar; se não der, no Ouvir mesa (logo antes dele).
-        LaunchedEffect(vm.buyFocusPending, buyView) {
+        // (O pedido é um número que aumenta; não é "consumido" aqui, senão a tentativa se cancelaria.)
+        val handledBuy = remember { intArrayOf(vm.buyFocusToken) }
+        LaunchedEffect(vm.buyFocusToken, buyView) {
             val b = buyView ?: return@LaunchedEffect
-            if (!vm.buyFocusPending) return@LaunchedEffect
-            vm.consumeBuyFocus()
+            if (vm.buyFocusToken == handledBuy[0]) return@LaunchedEffect
+            handledBuy[0] = vm.buyFocusToken
             if (!focusNative(b, "botão Comprar/Passar")) {
                 ouvirView?.let {
                     DiagLogBridge.add("não focou o Comprar/Passar; tentando o Ouvir mesa")
@@ -531,7 +533,7 @@ private fun NativeButton(
 @Composable
 private fun NativeFocusText(text: String, token: Int, sizeSp: Float, what: String) {
     var view by remember { mutableStateOf<android.widget.TextView?>(null) }
-    val seen = remember { token }
+    val handled = remember { intArrayOf(token) }
     androidx.compose.ui.viewinterop.AndroidView(
         factory = { ctx ->
             android.widget.TextView(ctx).apply {
@@ -548,6 +550,8 @@ private fun NativeFocusText(text: String, token: Int, sizeSp: Float, what: Strin
     )
     LaunchedEffect(token, view) {
         val v = view ?: return@LaunchedEffect
-        if (token != seen) focusNative(v, what)
+        if (token == handled[0]) return@LaunchedEffect
+        handled[0] = token
+        focusNative(v, what)
     }
 }

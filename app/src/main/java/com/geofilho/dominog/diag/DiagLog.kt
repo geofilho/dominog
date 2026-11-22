@@ -56,7 +56,14 @@ object DiagLog {
             AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> "janela mudou"
             else -> return // ignora as mudanças de conteúdo (são muitas)
         }
-        val text = e.text.joinToString(" ").ifBlank { e.contentDescription?.toString().orEmpty() }
+        var text = e.text.joinToString(" ").ifBlank { e.contentDescription?.toString().orEmpty() }
+        if (text.isBlank()) {
+            // Itens desenhados pelo Compose: o nome vem do próprio item que recebeu o foco.
+            text = runCatching {
+                val n = e.source
+                (n?.contentDescription ?: n?.text)?.toString().orEmpty()
+            }.getOrDefault("")
+        }
         val cls = e.className?.toString()?.substringAfterLast('.').orEmpty()
         add("A11Y", "$type \"${text.take(120)}\" ($cls)")
     }

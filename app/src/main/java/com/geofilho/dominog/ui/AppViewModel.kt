@@ -612,16 +612,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
 
     /**
      * true quando o foco do TalkBack deve ir para o botão Comprar pedra / Passar vez
-     * (depois que a voz termina o aviso). A tela consome com [consumeBuyFocus].
+     * (depois que a voz termina o aviso): número que aumenta a cada pedido.
      */
-    var buyFocusPending by mutableStateOf(false); private set
+    var buyFocusToken by mutableIntStateOf(0); private set
 
     private fun focusActionAfterSpeech() {
         DiagLog.add("FOCO", "pedido de foco no Comprar/Passar (espera a voz terminar)")
-        voice.afterQueue { DiagLog.add("FOCO", "voz terminou: levar foco ao Comprar/Passar"); buyFocusPending = true }
+        voice.afterQueue { DiagLog.add("FOCO", "voz terminou: levar foco ao Comprar/Passar"); buyFocusToken++ }
     }
-
-    fun consumeBuyFocus() { buyFocusPending = false }
 
     /** Muda depois da fala do início da partida: o foco do TalkBack desce para "Suas pedras". */
     var startFocus by mutableIntStateOf(0); private set
