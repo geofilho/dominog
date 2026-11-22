@@ -88,7 +88,7 @@ fun DiagnosticScreen(vm: AppViewModel) {
                 .fillMaxWidth()
                 .padding(top = 12.dp)
                 .heightIn(min = 56.dp)
-                .toggleable(value = vm.soundsMuted, role = Role.Switch) { vm.setSoundsMuted(it) }
+                .toggleable(value = vm.soundsMuted, role = Role.Switch) { vm.changeSoundsMuted(it) }
                 .padding(horizontal = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

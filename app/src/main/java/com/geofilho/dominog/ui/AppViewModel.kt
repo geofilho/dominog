@@ -42,7 +42,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** Chave "Silenciar sons do jogo" (Diagnóstico): cala os efeitos, mantém as falas. */
     var soundsMuted by mutableStateOf(prefs.getBoolean("sons_mudos", false)); private set
 
-    fun setSoundsMuted(m: Boolean) {
+    fun changeSoundsMuted(m: Boolean) {
         soundsMuted = m
         sfx.muted = m
         prefs.edit().putBoolean("sons_mudos", m).apply()
