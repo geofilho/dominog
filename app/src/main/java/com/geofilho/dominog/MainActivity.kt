@@ -20,6 +20,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.geofilho.dominog.diag.DiagLog.init(this)
         enableEdgeToEdge()
         setContent {
             DominoTheme {
@@ -32,6 +33,17 @@ class MainActivity : ComponentActivity() {
                     Screen.HELP -> HelpScreen(vm)
                     Screen.DIAGNOSTIC -> DiagnosticScreen(vm)
                 }
+            }
+        }
+        // Diagnóstico: registra para onde vai o foco do TalkBack (só quando a chave está ligada).
+        window.decorView.accessibilityDelegate = object : android.view.View.AccessibilityDelegate() {
+            override fun onRequestSendAccessibilityEvent(
+                host: android.view.ViewGroup,
+                child: android.view.View,
+                event: android.view.accessibility.AccessibilityEvent,
+            ): Boolean {
+                com.geofilho.dominog.diag.DiagLog.a11y(event)
+                return super.onRequestSendAccessibilityEvent(host, child, event)
             }
         }
     }

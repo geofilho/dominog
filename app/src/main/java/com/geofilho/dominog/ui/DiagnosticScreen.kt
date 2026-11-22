@@ -77,7 +77,35 @@ fun DiagnosticScreen(vm: AppViewModel) {
                 ctx.startActivity(Intent.createChooser(send, "Compartilhar o Dominó G"))
             }
         }
+        // Registro do foco do TalkBack (vem desligado para não pesar).
+        var diagOn by remember { mutableStateOf(com.geofilho.dominog.diag.DiagLog.enabled) }
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp)
+                .heightIn(min = 56.dp)
+                .toggleable(value = diagOn, role = Role.Switch) {
+                    diagOn = it
+                    com.geofilho.dominog.diag.DiagLog.setEnabled(it)
+                    if (vm.screenReaderOn) vm.voice.speak(if (it) "Registro ligado" else "Registro desligado", flush = true)
+                }
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Registrar o foco do TalkBack", fontSize = 19.sp)
+                Text(
+                    "Anota para onde o foco vai, os toques e os momentos do jogo. Depois toque em Ver relatório e compartilhe.",
+                    fontSize = 14.sp, color = Palette.Text.copy(alpha = 0.75f),
+                )
+            }
+            Switch(checked = diagOn, onCheckedChange = null)
+        }
         MenuButton("Ver relatório", Palette.AreaBorder) { report = buildReport(ctx, vm) }
+        MenuButton("Limpar relatório", Palette.AreaBorder) {
+            com.geofilho.dominog.diag.DiagLog.clear()
+            if (vm.screenReaderOn) vm.voice.speak("Relatório limpo", flush = true)
+        }
         // Chave: lida pelo TalkBack como "Silenciar sons do jogo, chave, ativada/desativada".
         Row(
             Modifier
@@ -149,5 +177,8 @@ private fun buildReport(ctx: Context, vm: AppViewModel): String {
         appendLine("Nome salvo: ${vm.playerName.ifBlank { "(nenhum)" }}")
         appendLine("Foto salva: ${if (vm.myPhoto != null) "sim" else "não"}")
         append("Idioma do aparelho: ${java.util.Locale.getDefault()}")
+        append("\nRegistro do foco: ${if (com.geofilho.dominog.diag.DiagLog.enabled) "ligado" else "desligado"}")
+        append("\n\n--- REGISTRO ---\n")
+        append(com.geofilho.dominog.diag.DiagLog.text())
     }
 }

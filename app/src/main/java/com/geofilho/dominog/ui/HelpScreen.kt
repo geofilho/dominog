@@ -69,6 +69,9 @@ private fun helpBlocks(version: String): List<Block> {
                 "mais recente e o link para baixar, para enviar aos amigos.\n" +
                 "- Ver relatório: mostra os dados do aparelho, do sistema, do Bluetooth e da voz, e pode ser copiado " +
                 "ou compartilhado, para ajudar a resolver problemas.\n" +
+                "- Registrar o foco do TalkBack: chave que vem desligada. Ligada, o aplicativo anota para onde o foco do " +
+                "TalkBack vai, os toques e os momentos do jogo. Depois de jogar, toque em Ver relatório e compartilhe, " +
+                "para ajudar a resolver problemas. O botão Limpar relatório apaga o que foi anotado.\n" +
                 "- Silenciar sons do jogo: chave que cala os efeitos sonoros, como embaralhar, pedras, bipes, porta e " +
                 "aplausos, e também os avisos falados do modo parceiro para quem não usa leitor de tela. Com o leitor de tela " +
                 "ligado, as falas continuam. A escolha fica salva.",

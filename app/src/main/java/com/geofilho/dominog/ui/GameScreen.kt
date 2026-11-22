@@ -341,7 +341,10 @@ private fun Curtain(vm: AppViewModel, @Suppress("UNUSED_PARAMETER") version: Int
         val focus = remember { FocusRequester() }
         val seen = remember { vm.curtainFocus }
         LaunchedEffect(vm.curtainFocus) {
-            if (vm.curtainFocus != seen) runCatching { focus.requestFocus() }
+            if (vm.curtainFocus != seen) {
+                val ok = runCatching { focus.requestFocus() }.isSuccess
+                com.geofilho.dominog.diag.DiagLog.add("FOCO", "pedido de foco no aviso 'Passe para': $ok")
+            }
         }
         Text(
             if (r.board.isEmpty()) "${vm.nameOf(r.current)} começa" else "Passe para o ${vm.nameOf(r.current)}",
@@ -485,10 +488,14 @@ private fun NativeFocusButton(label: String, enabled: Boolean, vm: AppViewModel,
         val v = view ?: return@LaunchedEffect
         if (!vm.buyFocusPending || !enabled) return@LaunchedEffect
         vm.consumeBuyFocus()
-        for (wait in listOf(250L, 700L, 1200L)) {
+        for ((i, wait) in listOf(250L, 700L, 1200L).withIndex()) {
             kotlinx.coroutines.delay(wait)
-            if (runCatching { v.createAccessibilityNodeInfo().isAccessibilityFocused }.getOrDefault(false)) break
-            v.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+            val already = runCatching { v.createAccessibilityNodeInfo().isAccessibilityFocused }.getOrDefault(false)
+            if (already) { com.geofilho.dominog.diag.DiagLog.add("FOCO", "botão '${v.text}' já está com o foco"); break }
+            val ok = v.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+            com.geofilho.dominog.diag.DiagLog.add(
+                "FOCO", "tentativa ${i + 1} de focar '${v.text}': aceita=$ok, na tela=${v.isShown}, anexado=${v.isAttachedToWindow}",
+            )
         }
     }
 }

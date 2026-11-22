@@ -17,6 +17,7 @@ import com.geofilho.dominog.bt.LinkEvent
 import com.geofilho.dominog.bt.Member
 import com.geofilho.dominog.bt.Proto
 import com.geofilho.dominog.bt.Transport
+import com.geofilho.dominog.diag.DiagLog
 import com.geofilho.dominog.game.Ai
 import com.geofilho.dominog.game.EndReason
 import com.geofilho.dominog.game.Level
@@ -372,6 +373,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
 
     private fun afterChange(before: Snap, r: Round) {
         val turnChanged = before.current != r.current
+        DiagLog.add(
+            "JOGO",
+            "vez de ${nameOf(r.current)} (eu=${nameOf(me)}); mesa ${r.board.size}; minha mão ${r.hands.getOrNull(me)?.size}; " +
+                "monte ${r.boneyard.size}; encaixa=${r.playable(me).size}${if (r.isOver) "; rodada terminou" else ""}",
+        )
         if (mode == Mode.LOCAL && (turnChanged || r.isOver)) revealed = false
         bump()
 
@@ -413,6 +419,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
                 sfx.playBeeps(p + 1)
                 viewModelScope.launch {
                     delay(if (p == 0) 250 else 480)
+                    DiagLog.add("FOCO", "aviso '$pass' (leitor=${screenReaderOn})")
                     if (screenReaderOn) curtainFocus++ else if (partnerVoiceOn) voice.speak(pass)
                 }
             }
@@ -578,6 +585,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
      */
     private fun say(text: String, flush: Boolean = false) {
         if (text.isBlank()) return
+        DiagLog.add("VOZ", (if (screenReaderOn) "" else "(calada, sem leitor) ") + text.trim())
         status = text.trim()
         if (screenReaderOn) voice.speak(text, flush)
     }
@@ -602,7 +610,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
      */
     var buyFocusPending by mutableStateOf(false); private set
 
-    private fun focusActionAfterSpeech() = voice.afterQueue { buyFocusPending = true }
+    private fun focusActionAfterSpeech() {
+        DiagLog.add("FOCO", "pedido de foco no Comprar/Passar (espera a voz terminar)")
+        voice.afterQueue { DiagLog.add("FOCO", "voz terminou: levar foco ao Comprar/Passar"); buyFocusPending = true }
+    }
 
     fun consumeBuyFocus() { buyFocusPending = false }
 
