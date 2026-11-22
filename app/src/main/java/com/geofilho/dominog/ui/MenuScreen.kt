@@ -79,6 +79,8 @@ fun MenuScreen(vm: AppViewModel) {
         MenuButton("Jogar contra o computador", Palette.Start) { askLevel = true }
         MenuButton("Jogar pelo Bluetooth", Palette.Action) { vm.openBluetooth() }
         MenuButton("Jogar com um parceiro no mesmo aparelho", Palette.Action) { vm.startLocal() }
+        // Alterna 3, 5 e 10 pontos (fica salvo). Vale para o computador, o parceiro e os seus convites no Bluetooth.
+        MenuButton("Partida até ${vm.targetChoice} pontos", Palette.AreaBorder) { vm.cycleTarget() }
         MenuButton("Como usar", Palette.AreaBorder) { vm.openHelp() }
         MenuButton("Diagnóstico", Palette.AreaBorder) { vm.openDiagnostic() }
     }

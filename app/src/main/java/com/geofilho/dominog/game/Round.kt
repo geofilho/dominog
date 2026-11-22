@@ -4,12 +4,51 @@ import kotlin.random.Random
 
 enum class EndReason { BATIDA, TRANCADO }
 
+/** Tipo da batida, que dá os pontos da rodada. */
+enum class BatidaKind(val score: Int, val label: String) {
+    /** Pedra comum numa ponta. */
+    SIMPLES(1, "batida simples"),
+    /** Carroça numa ponta. */
+    CARROCA(2, "batida de carroça"),
+    /** Pedra que encaixa nas duas pontas (ex.: pontas três e ás, bate com o três e ás). */
+    LA_E_LO(3, "lá e lô"),
+    /** Carroça que encaixa nas duas pontas (as duas pontas com o mesmo número). */
+    CRUZADA(4, "cruzada");
+
+    companion object {
+        /** Tipo da batida com [tile], com as pontas [l] e [r] da mesa antes da jogada. */
+        fun of(tile: Tile, l: Int?, r: Int?): BatidaKind {
+            val dbl = tile.a == tile.b
+            return when {
+                l == null || r == null -> if (dbl) CARROCA else SIMPLES
+                dbl && l == tile.a && r == tile.a -> CRUZADA
+                !dbl && ((tile.a == l && tile.b == r) || (tile.a == r && tile.b == l)) -> LA_E_LO
+                dbl -> CARROCA
+                else -> SIMPLES
+            }
+        }
+    }
+}
+
+/** Pontos de um jogo trancado com vencedor. */
+const val TRANCADO_SCORE = 1
+
 data class RoundResult(
     /** Índice do jogador vencedor (com 4 jogadores, a dupla dele vence) ou -1 em empate. */
     val winner: Int,
     val reason: EndReason,
+    /** Soma das pedras que sobraram com os adversários. */
     val points: Int,
-)
+    /** Tipo da batida (só quando [reason] é BATIDA). */
+    val kind: BatidaKind? = null,
+) {
+    /** Pontos que a rodada vale no placar: batida 1 a 4 conforme o tipo, trancado 1, empate 0. */
+    val score: Int get() = when {
+        winner < 0 -> 0
+        reason == EndReason.BATIDA -> (kind ?: BatidaKind.SIMPLES).score
+        else -> TRANCADO_SCORE
+    }
+}
 
 data class Move(val player: Int, val tile: Tile, val side: Side)
 
@@ -75,6 +114,7 @@ class Round private constructor(
         val hand = hands[player]
         if (!hand.contains(tile)) return false
         if (side !in sidesFor(tile) && !(board.isEmpty() && sidesFor(tile).isNotEmpty())) return false
+        val endsBefore = leftEnd to rightEnd
         if (board.isEmpty()) {
             board.addLast(Placed(tile, tile.a, tile.b))
             openingTile = null
@@ -90,7 +130,10 @@ class Round private constructor(
         lastMove = Move(player, tile, side)
         consecutivePasses = 0
         if (hand.isEmpty()) {
-            result = RoundResult(player, EndReason.BATIDA, pointsAgainst(sideOf(player)))
+            result = RoundResult(
+                player, EndReason.BATIDA, pointsAgainst(sideOf(player)),
+                BatidaKind.of(tile, endsBefore.first, endsBefore.second),
+            )
         } else {
             current = next(current)
         }
@@ -140,7 +183,7 @@ class Round private constructor(
         append(openingTile?.id ?: -1).append(';')
         append(consecutivePasses).append(';')
         val r = result
-        append(if (r == null) "-" else "${r.winner}:${r.reason.ordinal}:${r.points}").append(';')
+        append(if (r == null) "-" else "${r.winner}:${r.reason.ordinal}:${r.points}:${r.kind?.ordinal ?: -1}").append(';')
         val m = lastMove
         append(if (m == null) "-" else "${m.player}:${m.tile.id}:${m.side.ordinal}")
     }
@@ -175,7 +218,7 @@ class Round private constructor(
             val opening = p[i++].toInt().takeIf { it >= 0 }?.let(Tile::byId)
             val passes = p[i++].toInt()
             val result = if (p[i] == "-") null else p[i].split(':').map(String::toInt)
-                .let { RoundResult(it[0], EndReason.entries[it[1]], it[2]) }
+                .let { RoundResult(it[0], EndReason.entries[it[1]], it[2], it.getOrNull(3)?.let(BatidaKind.entries::getOrNull)) }
             i++
             val round = Round(n, hands, board, bone, current, opening, passes, result)
             if (p[i] != "-") {

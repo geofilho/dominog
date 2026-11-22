@@ -62,7 +62,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.geofilho.dominog.game.EndReason
 import com.geofilho.dominog.game.Round
 import com.geofilho.dominog.game.Side
 import com.geofilho.dominog.game.Tile
@@ -114,7 +113,7 @@ fun GameScreen(vm: AppViewModel) {
                 .clickable(onClickLabel = "ouvir o histórico") { showHistory = true; vm.speakHistory() }
                 .padding(4.dp)
                 .semantics {
-                    contentDescription = "Placar, melhor de 5: ${vm.placarText()}"
+                    contentDescription = "Placar, partida até ${vm.matchTarget} pontos: ${vm.placarText()}"
                     role = Role.Button
                 },
         )
@@ -404,11 +403,7 @@ private fun Curtain(vm: AppViewModel, @Suppress("UNUSED_PARAMETER") version: Int
 @Composable
 private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") version: Int) {
     val res = r.result ?: return
-    val title = when {
-        res.winner < 0 -> "Jogo trancado — empate (não conta)"
-        res.reason == EndReason.BATIDA -> "${vm.nameOf(res.winner)} bateu!"
-        else -> "Trancado: ${vm.nameOf(res.winner)} venceu a rodada!"
-    }
+    val title = vm.resultTitle(r)
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         // Título nativo: depois da leitura do resultado, o foco do TalkBack vem para ele.
         NativeFocusText(title, token = vm.resultFocus, sizeSp = 20f, what = "resultado da rodada")

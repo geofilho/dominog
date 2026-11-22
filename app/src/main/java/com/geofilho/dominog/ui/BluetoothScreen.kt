@@ -252,7 +252,7 @@ fun BluetoothScreen(vm: AppViewModel) {
         AlertDialog(
             onDismissRequest = {},
             title = { Text("Convite") },
-            text = { Text("$from quer começar o jogo.") },
+            text = { Text("$from quer começar uma partida até ${vm.inviteTarget} pontos.") },
             confirmButton = { TextButton(onClick = { vm.answerInvite(true) }) { Text("Aceitar") } },
             dismissButton = { TextButton(onClick = { vm.answerInvite(false) }) { Text("Recusar") } },
         )
@@ -333,7 +333,8 @@ private fun Lobby(vm: AppViewModel) {
             modifier = Modifier.padding(12.dp),
         )
     } else if (session.canStart) {
-        MenuButton("Iniciar jogo", Palette.Start) { vm.invite() }
+        MenuButton("Iniciar jogo até ${vm.targetChoice} pontos", Palette.Start) { vm.invite() }
+        MenuButton("Mudar pontos da partida", Palette.AreaBorder) { vm.cycleTarget() }
     }
     OutlinedButton(onClick = { vm.leaveRoom() }, modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)) { Text("Desconectar") }
 }

@@ -110,4 +110,22 @@ class RoundTest {
         assertTrue(mediumVsEasy > n * 0.52)
         assertTrue(hardVsMedium > n * 0.5)
     }
+
+    @Test fun batidaKindsAndScores() {
+        assertEquals(BatidaKind.SIMPLES, BatidaKind.of(Tile.of(3, 5), 3, 1))
+        assertEquals(BatidaKind.CARROCA, BatidaKind.of(Tile.of(3, 3), 3, 1))
+        assertEquals(BatidaKind.LA_E_LO, BatidaKind.of(Tile.of(3, 1), 3, 1))
+        assertEquals(BatidaKind.LA_E_LO, BatidaKind.of(Tile.of(3, 1), 1, 3))
+        assertEquals(BatidaKind.CRUZADA, BatidaKind.of(Tile.of(4, 4), 4, 4))
+        // Pontas iguais e pedra comum: só encaixa numa ponta.
+        assertEquals(BatidaKind.SIMPLES, BatidaKind.of(Tile.of(4, 2), 4, 4))
+        assertEquals(listOf(1, 2, 3, 4), BatidaKind.entries.map { it.score })
+        assertEquals(3, RoundResult(0, EndReason.BATIDA, 10, BatidaKind.LA_E_LO).score)
+        assertEquals(1, RoundResult(1, EndReason.TRANCADO, 10).score)
+        assertEquals(0, RoundResult(-1, EndReason.TRANCADO, 0).score)
+        // O tipo da batida sobrevive à codificação usada no Bluetooth.
+        val r = Round.decode("2;;5;10:3:1;;0;-1;0;0:0:12:2;-")
+        assertEquals(BatidaKind.LA_E_LO, r.result!!.kind)
+        assertEquals(r.encode(), Round.decode(r.encode()).encode())
+    }
 }

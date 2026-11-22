@@ -60,9 +60,13 @@ private fun helpBlocks(version: String): List<Block> {
             "3. Jogar com um parceiro no mesmo aparelho: Jogador 1 e Jogador 2 usam o mesmo celular. Veja abaixo, " +
                 "em JOGAR COM UM PARCEIRO NO MESMO APARELHO.",
         ),
-        p("4. Como usar: abre este texto."),
         p(
-            "5. Diagnóstico: abre uma página com estas opções.\n" +
+            "4. Partida até 5 pontos: cada toque muda a pontuação para vencer a partida: 3, 5 ou 10 pontos. " +
+                "A escolha fica salva e vale contra o computador, com o parceiro e nos convites que você faz pelo Bluetooth.",
+        ),
+        p("5. Como usar: abre este texto."),
+        p(
+            "6. Diagnóstico: abre uma página com estas opções.\n" +
                 "- Verificar atualização: procura versão nova. Se houver, mostra as novidades e pergunta se quer " +
                 "baixar e instalar. O botão também informa a versão instalada.\n" +
                 "- Compartilhar jogo: abre o compartilhamento do Android com este texto, já com o número da versão " +
@@ -85,7 +89,7 @@ private fun helpBlocks(version: String): List<Block> {
 
         h("TELA DO JOGO, NA ORDEM DA VARREDURA"),
         p(
-            "1. Placar: mostra as rodadas vencidas por cada um na partida, que é melhor de 5. Tocando no placar, a voz " +
+            "1. Placar: mostra os pontos de cada um na partida. Tocando no placar, a voz " +
                 "fala o histórico de partidas ganhas e perdidas.",
         ),
         p("2. Resumo da mesa: por exemplo, \"Mesa com 2 pedras, ponta esquerda dois, ponta direita quatro\"."),
@@ -149,8 +153,8 @@ private fun helpBlocks(version: String): List<Block> {
                 "já com o foco nela.",
         ),
         p(
-            "6. Fim da rodada: a voz fala o resultado e o placar, e o foco vai para a frase do resultado, como Você " +
-                "bateu. Logo abaixo ficam as pedras que sobraram com cada um e o botão Próxima rodada.",
+            "6. Fim da rodada: a voz fala o resultado, os pontos ganhos e o placar, e o foco vai para a frase do resultado, como Você " +
+                "bateu lá e lô, 3 pontos. Logo abaixo ficam as pedras que sobraram com cada um e o botão Próxima rodada.",
         ),
         p(
             "7. Para saber como está o jogo a qualquer momento, deslize até Ouvir mesa, no fim da tela, e toque duas vezes.",
@@ -181,7 +185,8 @@ private fun helpBlocks(version: String): List<Block> {
         ),
         p(
             "7. Qualquer um toca em Iniciar jogo e os outros tocam em Aceitar. A partida começa quando todos aceitam. " +
-                "Se alguém recusar, todos voltam para a sala.",
+                "Se alguém recusar, todos voltam para a sala. O botão Mudar pontos da partida alterna entre 3, 5 e 10 pontos; " +
+                "vale a pontuação de quem tocou em Iniciar jogo, e o convite avisa quantos pontos são.",
         ),
         p(
             "8. Na tela do jogo, cada outro jogador aparece com quantas pedras tem, na ordem em que jogam. " +
@@ -215,8 +220,14 @@ private fun helpBlocks(version: String): List<Block> {
                 "- Sem pedra que encaixe, compra do monte; com o monte vazio (ou com 4 jogadores), passa a vez.\n" +
                 "- Com 4 jogadores, as duplas jogam alternadas: você, um adversário, seu parceiro, o outro adversário.\n" +
                 "- Bate quem jogar a última pedra. Se ninguém puder jogar, o jogo tranca e vence quem tiver menos pontos " +
-                "na mão; com 4 jogadores, vence a dupla desse jogador. Empate no jogo trancado não conta.\n" +
-                "- A partida é melhor de 5: vence quem (ou a dupla que) ganhar 3 rodadas primeiro.",
+                "na mão; com 4 jogadores, vence a dupla desse jogador. Empate no jogo trancado não marca ponto.\n" +
+                "- Pontos da rodada, conforme a batida:\n" +
+                "- Batida simples, com uma pedra comum numa ponta: 1 ponto.\n" +
+                "- Batida de carroça, com uma carroça numa ponta: 2 pontos.\n" +
+                "- Lá e lô, com uma pedra que encaixa nas duas pontas, como terno e ás com as pontas em terno e ás: 3 pontos.\n" +
+                "- Cruzada, com uma carroça que encaixa nas duas pontas, como a carroça de quatro com as duas pontas em quatro: 4 pontos.\n" +
+                "- Jogo trancado: 1 ponto para quem vencer.\n" +
+                "- Vence a partida quem (ou a dupla que) chegar primeiro aos pontos escolhidos: 3, 5 ou 10. O padrão é 5.",
         ),
 
         h("HISTÓRICO"),

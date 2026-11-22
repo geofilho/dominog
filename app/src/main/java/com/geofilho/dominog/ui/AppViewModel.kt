@@ -19,6 +19,7 @@ import com.geofilho.dominog.bt.Proto
 import com.geofilho.dominog.bt.Transport
 import com.geofilho.dominog.diag.DiagLog
 import com.geofilho.dominog.game.Ai
+import com.geofilho.dominog.game.BatidaKind
 import com.geofilho.dominog.game.EndReason
 import com.geofilho.dominog.game.Level
 import com.geofilho.dominog.game.Round
@@ -37,8 +38,8 @@ import kotlinx.coroutines.withContext
 
 enum class Screen { MENU, BLUETOOTH, GAME, HELP, DIAGNOSTIC }
 
-/** Rodadas vencidas para ganhar a partida (melhor de 5). */
-const val WINS_TO_MATCH = 3
+/** Opções de pontos para vencer a partida (o botão do menu alterna entre elas). */
+val TARGET_OPTIONS = listOf(3, 5, 10)
 
 enum class Mode { CPU, LOCAL, BT }
 
@@ -107,6 +108,22 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
 
     /** Nome de quem convidou (mostra o diálogo Aceitar/Recusar). */
     var inviteFrom by mutableStateOf<String?>(null); private set
+    /** Pontos da partida proposta no convite recebido. */
+    var inviteTarget by mutableIntStateOf(BtSession.DEFAULT_TARGET); private set
+
+    /** Pontos para vencer a partida escolhidos no menu (vale para o computador, o parceiro e os convites que você faz). */
+    var targetChoice by mutableIntStateOf(prefs.getInt("meta", BtSession.DEFAULT_TARGET).takeIf { it in TARGET_OPTIONS } ?: BtSession.DEFAULT_TARGET)
+        private set
+    /** Pontos para vencer a partida em andamento (no Bluetooth, os de quem convidou). */
+    var matchTarget by mutableIntStateOf(targetChoice); private set
+
+    /** Botão do menu: alterna entre 3, 5 e 10 pontos. */
+    fun cycleTarget() {
+        val i = TARGET_OPTIONS.indexOf(targetChoice)
+        targetChoice = TARGET_OPTIONS[(i + 1) % TARGET_OPTIONS.size]
+        prefs.edit().putInt("meta", targetChoice).apply()
+        say("Partida até $targetChoice pontos", flush = true)
+    }
     var waitingAccept by mutableStateOf(false); private set
     var lobbyMessage by mutableStateOf<String?>(null)
 
@@ -210,8 +227,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     /** Nível do computador escolhido no menu. */
     var level by mutableStateOf(Level.MEDIO); private set
 
-    fun startCpu(l: Level) { level = l; mode = Mode.CPU; newMatch() }
-    fun startLocal() { mode = Mode.LOCAL; newMatch() }
+    fun startCpu(l: Level) { level = l; mode = Mode.CPU; matchTarget = targetChoice; newMatch() }
+    fun startLocal() { mode = Mode.LOCAL; matchTarget = targetChoice; newMatch() }
     fun openBluetooth() { screen = Screen.BLUETOOTH; lobbyMessage = null }
     fun openHelp() { screen = Screen.HELP }
     fun openDiagnostic() { screen = Screen.DIAGNOSTIC }
@@ -462,27 +479,59 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     /** O foco de início de rodada ainda não foi levado a "Suas pedras" (espera a sua vez). */
     private var startFocusPending = false
 
-    /** Partida = melhor de 5: vence o lado (jogador ou dupla) que ganhar [WINS_TO_MATCH] rodadas primeiro. */
-    val matchOver: Boolean get() = (0 until sideCount).any { scores[it] >= WINS_TO_MATCH }
-    val matchWinner: Int get() = (0 until sideCount).firstOrNull { scores[it] >= WINS_TO_MATCH } ?: -1
+    /**
+     * Partida por pontos: vence o lado (jogador ou dupla) que chegar primeiro a [matchTarget] pontos.
+     * Batida simples 1, de carroça 2, lá e lô 3, cruzada 4; trancado 1.
+     */
+    val matchOver: Boolean get() = (0 until sideCount).any { scores[it] >= matchTarget }
+    val matchWinner: Int get() = (0 until sideCount).maxByOrNull { scores[it] }?.takeIf { scores[it] >= matchTarget } ?: -1
+
+    /** "bateu", "bateu de carroça", "bateu lá e lô", "bateu cruzado". */
+    private fun howBatida(k: BatidaKind?) = when (k) {
+        null, BatidaKind.SIMPLES -> "bateu"
+        BatidaKind.CARROCA -> "bateu de carroça"
+        BatidaKind.LA_E_LO -> "bateu lá e lô"
+        BatidaKind.CRUZADA -> "bateu cruzado"
+    }
+
+    /** "1 ponto" / "3 pontos". */
+    fun pontos(n: Int) = if (n == 1) "1 ponto" else "$n pontos"
+
+    /** Título do resultado da rodada (tela e TalkBack). */
+    fun resultTitle(r: Round): String {
+        val res = r.result ?: return ""
+        val who = nameOf(res.winner)
+        return when {
+            res.winner < 0 -> "Jogo trancado: empate, ninguém marca ponto"
+            res.reason == EndReason.BATIDA -> {
+                "$who ${howBatida(res.kind)}! ${pontos(res.score)}"
+            }
+            else -> "Trancado: $who venceu a rodada! ${pontos(res.score)}"
+        }
+    }
 
     private fun announceResult(r: Round) {
         val res = r.result!!
         // Nos outros aparelhos do Bluetooth o placar já chega pronto de quem comanda.
-        if (res.winner >= 0 && isAuthority) scores[r.sideOf(res.winner)]++
+        if (res.winner >= 0 && isAuthority) scores[r.sideOf(res.winner)] += res.score
         if (matchOver) recordMatch()
         if (res.winner >= 0) sfx.playApplause()
         val youWon = res.winner >= 0 && mode != Mode.LOCAL && res.winner == me
-        val how = if (res.reason == EndReason.BATIDA) "bateu" else "venceu no jogo trancado"
+        val how = if (res.reason == EndReason.BATIDA) howBatida(res.kind) else "venceu no jogo trancado"
         val sb = StringBuilder()
         sb.append(
             when {
-                res.winner < 0 -> "Jogo trancado. Empate, a rodada não conta. "
+                res.winner < 0 -> "Jogo trancado. Empate, ninguém marca ponto. "
                 youWon -> "Você $how! "
                 else -> "${spokenName(res.winner)} $how. "
             },
         )
-        if (res.winner >= 0 && r.n == 4) sb.append("Ponto para a ${spokenSide(r.sideOf(res.winner))}. ")
+        if (res.winner >= 0) {
+            sb.append(
+                if (r.n == 4) "${pontos(res.score).replaceFirstChar { it.uppercaseChar() }} para a ${spokenSide(r.sideOf(res.winner))}. "
+                else "${pontos(res.score).replaceFirstChar { it.uppercaseChar() }}. ",
+            )
+        }
         if (matchOver) {
             val w = matchWinner
             val mine = mode != Mode.LOCAL && w == r.sideOf(me)
@@ -690,7 +739,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     fun invite() {
         if (!session.canStart) return
         waitingAccept = true
-        session.invite()
+        session.invite(targetChoice)
         say("Convite enviado. Aguardando ${if (session.roster.size > 2) "os outros aceitarem" else "o amigo aceitar"}.", flush = true)
     }
 
@@ -709,7 +758,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     private fun broadcast() {
         if (mode != Mode.BT || !session.isRoot) return
         val r = round ?: return
-        val sc = (0 until 4).joinToString(",") { scores[it].toString() }
+        // Placar dos 4 lugares e, no fim, os pontos para vencer a partida.
+        val sc = (0 until 4).joinToString(",") { scores[it].toString() } + ",$matchTarget"
         session.broadcast("${Proto.STATE}|${if (shuffling) 1 else 0}|$sc|${seatIds.joinToString(",")}|${r.encode()}")
     }
 
@@ -730,10 +780,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         Avatar.decodeBase64(base64)?.let { photos[id] = it; roomVersion++ }
     }
 
-    override fun onInvite(fromId: String) {
+    override fun onInvite(fromId: String, target: Int) {
         val name = session.nameOf(fromId)
+        inviteTarget = target
         inviteFrom = name
-        say("$name quer começar o jogo. Aceitar?", flush = true)
+        say("$name quer começar uma partida até $target pontos. Aceitar?", flush = true)
     }
 
     override fun onInviteDeclined(byName: String) {
@@ -742,8 +793,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         say("$byName recusou o convite", flush = true)
     }
 
-    override fun onStartGame(seatIds: List<String>) {
+    override fun onStartGame(seatIds: List<String>, target: Int) {
         this.seatIds = seatIds
+        matchTarget = target
         mode = Mode.BT
         newMatch()
     }
@@ -786,7 +838,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     private fun onState(parts: List<String>) {
         // STATE|embaralhando|placar,..|lugares,..|rodada
         val shuffle = parts[1] == "1"
-        parts[2].split(',').forEachIndexed { i, v -> if (i < 4) scores[i] = v.toIntOrNull() ?: 0 }
+        parts[2].split(',').forEachIndexed { i, v ->
+            if (i < 4) scores[i] = v.toIntOrNull() ?: 0
+            else if (i == 4) v.toIntOrNull()?.let { matchTarget = it }
+        }
         seatIds = parts[3].split(',').filter { it.isNotEmpty() }
         mode = Mode.BT
         waitingAccept = false

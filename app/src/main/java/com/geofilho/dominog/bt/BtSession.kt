@@ -35,11 +35,11 @@ class BtSession(
         fun onRoster() {}
         fun onPhoto(id: String, base64: String) {}
         /** Alguém convidou para começar (mostrar Aceitar/Recusar). */
-        fun onInvite(fromId: String) {}
+        fun onInvite(fromId: String, target: Int) {}
         /** Convite recusado por [byName]. */
         fun onInviteDeclined(byName: String) {}
         /** Só na raiz: todos aceitaram; distribuir as pedras para os lugares [seatIds]. */
-        fun onStartGame(seatIds: List<String>) {}
+        fun onStartGame(seatIds: List<String>, target: Int) {}
         /** Só na raiz: jogada vinda de outro aparelho (PLAY/DRAW/PASS/NEXT). */
         fun onRootMessage(parts: List<String>) {}
         /** Nos outros: mensagem do jogo vinda da raiz (STATE/ENDGAME). */
@@ -187,7 +187,7 @@ class BtSession(
                 listener.onRoster()
             }
             Proto.PHOTO -> storePhoto(parts)
-            Proto.INVITE -> parts.getOrNull(1)?.let { if (it != myId) listener.onInvite(it) }
+            Proto.INVITE -> parts.getOrNull(1)?.let { if (it != myId) listener.onInvite(it, targetOf(parts)) }
             Proto.INVRES -> listener.onInviteDeclined(parts.getOrNull(2).orEmpty())
             Proto.STATE, Proto.ENDGAME -> listener.onDownMessage(parts)
         }
@@ -206,18 +206,24 @@ class BtSession(
                     broadcastRoster()
                 }
             }
-            Proto.INVITE -> startInvite(parts.getOrNull(1).orEmpty())
+            Proto.INVITE -> startInvite(parts.getOrNull(1).orEmpty(), targetOf(parts))
             Proto.ANSWER -> answer(parts.getOrNull(1).orEmpty(), parts.getOrNull(2) == "1")
             else -> listener.onRootMessage(parts)
         }
     }
 
-    private fun startInvite(from: String) {
+    /** Pontos para vencer a partida, escolhidos por quem convidou. */
+    private var pendingTarget = DEFAULT_TARGET
+
+    private fun targetOf(parts: List<String>) = parts.getOrNull(2)?.toIntOrNull()?.takeIf { it in 1..99 } ?: DEFAULT_TARGET
+
+    private fun startInvite(from: String, target: Int) {
         if (inGame || !canStart) return
         pendingInviteFrom = from
+        pendingTarget = target
         inviteAccepted.clear(); inviteAccepted += from
-        sendDown("${Proto.INVITE}|$from")
-        if (from != myId) listener.onInvite(from)
+        sendDown("${Proto.INVITE}|$from|$target")
+        if (from != myId) listener.onInvite(from, target)
     }
 
     private fun answer(id: String, ok: Boolean) {
@@ -234,7 +240,7 @@ class BtSession(
             pendingInviteFrom = null
             inGame = true
             broadcastRoster()
-            listener.onStartGame(seatOrder())
+            listener.onStartGame(seatOrder(), pendingTarget)
         }
     }
 
@@ -284,8 +290,9 @@ class BtSession(
 
     // ================= Ações deste aparelho =================
 
-    fun invite() {
-        if (isRoot) startInvite(myId) else sendUp("${Proto.INVITE}|$myId")
+    /** Convida todos para começar uma partida até [target] pontos. */
+    fun invite(target: Int = DEFAULT_TARGET) {
+        if (isRoot) startInvite(myId, target) else sendUp("${Proto.INVITE}|$myId|$target")
     }
 
     fun answerInvite(ok: Boolean) {
@@ -347,6 +354,8 @@ class BtSession(
 
     companion object {
         const val MAX_PLAYERS = 4
+        /** Pontos para vencer a partida, quando não informado. */
+        const val DEFAULT_TARGET = 5
         private fun clean(s: String) = s.replace(Regex("[~,|]"), " ").trim().ifEmpty { "Amigo" }
         fun encodeMembers(m: List<Member>) = m.joinToString(",") { "${it.id}~${clean(it.name)}" }
         fun parseMembers(s: String): List<Member> = if (s.isEmpty()) emptyList() else s.split(',').mapNotNull {

@@ -14,13 +14,13 @@ object Proto {
     const val PHOTO = "PHOTO"
     /** Escolha de parceiro (4 jogadores): PARTNER|idA|idB. */
     const val PARTNER = "PARTNER"
-    /** Convite para começar: INVITE|idDeQuemConvidou (sobe e depois desce para todos). */
+    /** Convite para começar: INVITE|idDeQuemConvidou|pontosParaVencer (sobe e depois desce para todos). */
     const val INVITE = "INVITE"
     /** Resposta ao convite: ANSWER|id|1 ou 0. */
     const val ANSWER = "ANSWER"
     /** Resultado do convite (desce): INVRES|0|nome de quem recusou. */
     const val INVRES = "INVRES"
-    /** Estado do jogo (desce): STATE|embaralhando|placar,..|idsDosLugares,..|rodada codificada. */
+    /** Estado do jogo (desce): STATE|embaralhando|placar x4,pontosParaVencer|idsDosLugares,..|rodada codificada. */
     const val STATE = "STATE"
     const val PLAY = "PLAY"   // PLAY|lugar|idPedra|lado (sobe)
     const val DRAW = "DRAW"   // DRAW|lugar (sobe)
