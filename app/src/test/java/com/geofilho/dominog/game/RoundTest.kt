@@ -43,4 +43,36 @@ class RoundTest {
             r.board.zipWithNext().forEach { (a, b) -> assertEquals(a.right, b.left) }
         }
     }
+
+    /** Joga [games] rodadas entre dois níveis (alternando quem começa) e devolve as vitórias de [a]. */
+    private fun duel(a: Level, b: Level, games: Int): Int {
+        var winsA = 0
+        repeat(games) { g ->
+            val rnd = Random(g)
+            val r = Round.deal(g % 2, rnd)
+            val lv = arrayOf(a, b)
+            while (!r.isOver) {
+                val p = r.current
+                val m = Ai.choose(r, p, lv[p], rnd)
+                when {
+                    m != null -> r.play(p, m.tile, m.side)
+                    r.canDraw(p) -> r.draw(p)
+                    else -> r.pass(p)
+                }
+            }
+            if (r.result!!.winner == 0) winsA++
+        }
+        return winsA
+    }
+
+    @Test fun levelsAreOrdered() {
+        val n = 4000
+        val hardVsEasy = duel(Level.DIFICIL, Level.FACIL, n)
+        val hardVsMedium = duel(Level.DIFICIL, Level.MEDIO, n)
+        val mediumVsEasy = duel(Level.MEDIO, Level.FACIL, n)
+        println("difícil×fácil=$hardVsEasy difícil×médio=$hardVsMedium médio×fácil=$mediumVsEasy (de $n)")
+        assertTrue(hardVsEasy > n * 0.55)
+        assertTrue(mediumVsEasy > n * 0.52)
+        assertTrue(hardVsMedium > n * 0.5)
+    }
 }

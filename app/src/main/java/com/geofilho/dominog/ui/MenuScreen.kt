@@ -13,7 +13,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.geofilho.dominog.game.Level
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Text
@@ -28,6 +35,23 @@ import androidx.compose.ui.unit.sp
 
 @Composable
 fun MenuScreen(vm: AppViewModel) {
+    var askLevel by remember { mutableStateOf(false) }
+    if (askLevel) {
+        // Diálogo: o TalkBack leva o foco direto para ele.
+        AlertDialog(
+            onDismissRequest = { askLevel = false },
+            title = { Text("Escolha o nível") },
+            text = {
+                Column {
+                    Level.entries.forEach { l ->
+                        MenuButton(l.label, Palette.Action) { askLevel = false; vm.startCpu(l) }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { askLevel = false }) { Text("Cancelar") } },
+        )
+    }
     Column(
         Modifier
             .fillMaxSize()
@@ -48,7 +72,7 @@ fun MenuScreen(vm: AppViewModel) {
             modifier = Modifier.semantics { heading() },
         )
         Spacer(Modifier.height(36.dp))
-        MenuButton("Jogar contra o computador", Palette.Start) { vm.startCpu() }
+        MenuButton("Jogar contra o computador", Palette.Start) { askLevel = true }
         MenuButton("Jogar pelo Bluetooth", Palette.Action) { vm.openBluetooth() }
         MenuButton("Jogar com um parceiro no mesmo aparelho", Palette.Action) { vm.startLocal() }
         MenuButton("Como usar", Palette.AreaBorder) { vm.openHelp() }

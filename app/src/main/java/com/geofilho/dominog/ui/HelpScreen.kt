@@ -23,7 +23,8 @@ import androidx.compose.ui.unit.sp
 
 private val HELP = listOf(
     "Jogar contra o computador" to
-        "Você joga contra o celular. Toque numa pedra para jogar. Se ela encaixar nas duas pontas, " +
+        "Você joga contra o celular e escolhe o nível: fácil, médio ou difícil. No difícil o computador " +
+        "lembra os números que você não tem e tenta fechar o jogo para você. Toque numa pedra para jogar. Se ela encaixar nas duas pontas, " +
         "o jogo pergunta: esquerda ou direita. Se a pedra não encaixar, o jogo avisa.",
     "Jogar pelo Bluetooth" to
         "Digite seu nome uma vez, ele fica salvo. Um dos dois toca em Criar sala. O outro toca em " +

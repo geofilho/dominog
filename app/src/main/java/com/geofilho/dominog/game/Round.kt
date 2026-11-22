@@ -34,6 +34,14 @@ class Round private constructor(
     var result: RoundResult? = result; private set
     var lastMove: Move? = null; private set
 
+    /** Números que cada jogador mostrou não ter (comprou ou passou com essas pontas). Usado pela IA difícil. */
+    val lacks: List<MutableSet<Int>> = listOf(HashSet(), HashSet())
+
+    private fun noteLacking(player: Int) {
+        leftEnd?.let { lacks[player].add(it) }
+        rightEnd?.let { lacks[player].add(it) }
+    }
+
     val isOver get() = result != null
     val leftEnd get() = board.firstOrNull()?.left
     val rightEnd get() = board.lastOrNull()?.right
@@ -68,6 +76,7 @@ class Round private constructor(
             board.addLast(Placed(tile, r, tile.other(r)))
         }
         hand.remove(tile)
+        lacks[player].remove(tile.a); lacks[player].remove(tile.b)
         lastMove = Move(player, tile, side)
         consecutivePasses = 0
         if (hand.isEmpty()) {
@@ -80,6 +89,7 @@ class Round private constructor(
 
     fun draw(player: Int): Tile? {
         if (!canDraw(player)) return null
+        noteLacking(player)
         val t = boneyard.removeAt(boneyard.lastIndex)
         hands[player].add(t)
         return t
@@ -87,6 +97,7 @@ class Round private constructor(
 
     fun pass(player: Int): Boolean {
         if (!mustPass(player)) return false
+        noteLacking(player)
         consecutivePasses++
         lastMove = null
         if (consecutivePasses >= 2) {

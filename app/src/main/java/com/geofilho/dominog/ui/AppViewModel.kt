@@ -14,6 +14,7 @@ import com.geofilho.dominog.bt.LinkState
 import com.geofilho.dominog.bt.Proto
 import com.geofilho.dominog.game.Ai
 import com.geofilho.dominog.game.EndReason
+import com.geofilho.dominog.game.Level
 import com.geofilho.dominog.game.Round
 import com.geofilho.dominog.game.Side
 import com.geofilho.dominog.game.Tile
@@ -97,7 +98,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // =================== Navegação ===================
-    fun startCpu() { mode = Mode.CPU; newMatch() }
+    /** Nível do computador escolhido no menu. */
+    var level by mutableStateOf(Level.MEDIO); private set
+
+    fun startCpu(l: Level) { level = l; mode = Mode.CPU; newMatch() }
     fun startLocal() { mode = Mode.LOCAL; newMatch() }
     fun openBluetooth() { screen = Screen.BLUETOOTH; lobbyMessage = null }
     fun openHelp() { screen = Screen.HELP }
@@ -219,7 +223,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         cpuJob = viewModelScope.launch {
             delay(1300)
             while (!r.isOver && r.current == 1) {
-                val m = Ai.choose(r, 1)
+                val m = Ai.choose(r, 1, level)
                 when {
                     m != null -> { act(1) { it.play(1, m.tile, m.side) }; break }
                     r.canDraw(1) -> { act(1) { it.draw(1) != null }; delay(650) }
