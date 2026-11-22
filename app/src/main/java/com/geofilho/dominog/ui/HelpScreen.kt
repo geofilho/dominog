@@ -37,7 +37,8 @@ private val HELP = listOf(
         "São 28 pedras, 7 para cada jogador. Na primeira rodada quem começa é sorteado; depois, começa quem venceu. " +
         "Sem pedra que encaixe, toque em Comprar pedra; se o monte acabar, toque em Passar vez. " +
         "Bate quem jogar a última pedra. Se ninguém puder jogar, o jogo tranca e vence quem tiver " +
-        "menos pontos na mão. A partida é melhor de 5: vence quem ganhar 3 rodadas primeiro.",
+        "menos pontos na mão. A partida é melhor de 5: vence quem ganhar 3 rodadas primeiro. " +
+        "Toque no placar, durante o jogo, para ouvir o histórico de partidas ganhas e perdidas.",
     "Para pessoas cegas" to
         "O jogo fala cada jogada, as pontas da mesa e de quem é a vez, e tem sons de pedra. " +
         "Funciona com o TalkBack: cada pedra é lida pelo nome. Com o leitor de tela ligado aparece o botão Ouvir mesa, que diz as pontas da mesa " +

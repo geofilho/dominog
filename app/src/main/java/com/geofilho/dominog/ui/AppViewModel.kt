@@ -33,6 +33,7 @@ enum class Mode { CPU, LOCAL, BT_HOST, BT_GUEST }
 class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("dominog", Context.MODE_PRIVATE)
     val voice = Voice(app)
+    val history = History(prefs)
     val sfx = SoundFx()
     val link = BtLink(app)
 
@@ -294,6 +295,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val res = r.result!!
         // No convidado do Bluetooth o placar já chega pronto do anfitrião.
         if (res.winner >= 0 && mode != Mode.BT_GUEST) scores[res.winner]++
+        if (matchOver) recordMatch()
         if (res.winner >= 0) sfx.playApplause()
         val youWon = res.winner >= 0 && mode != Mode.LOCAL && res.winner == me
         val how = if (res.reason == EndReason.BATIDA) "bateu" else "venceu no jogo trancado"
@@ -315,6 +317,24 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         say(sb.toString())
         bump()
     }
+
+    private fun recordMatch() {
+        val w = matchWinner
+        when (mode) {
+            Mode.CPU -> history.recordCpu(level, won = w == 0)
+            Mode.LOCAL -> history.recordLocal(w)
+            Mode.BT_HOST, Mode.BT_GUEST -> history.recordBt(friendName.ifBlank { "Amigo" }, won = w == me)
+        }
+    }
+
+    /** Texto do histórico do modo atual (tocar no placar). */
+    fun historyText(): String = when (mode) {
+        Mode.CPU -> history.cpuText()
+        Mode.LOCAL -> history.localText()
+        else -> history.btText(friendName.ifBlank { null })
+    }
+
+    fun speakHistory() = say(historyText(), flush = true)
 
     /** Botão "Ouvir mesa": mesa, pontas e quantas pedras o adversário tem. */
     fun describe() {

@@ -76,6 +76,15 @@ fun GameScreen(vm: AppViewModel) {
     val me = vm.me
     val opp = 1 - me
     var choosing by remember { mutableStateOf<Tile?>(null) }
+    var showHistory by remember { mutableStateOf(false) }
+    if (showHistory) {
+        AlertDialog(
+            onDismissRequest = { showHistory = false },
+            title = { Text("Histórico") },
+            text = { Text(vm.historyText(), fontSize = 17.sp) },
+            confirmButton = { TextButton(onClick = { showHistory = false }) { Text("Fechar") } },
+        )
+    }
     if (choosing != null && (!vm.canAct() || choosing !in r.hands[me])) choosing = null
 
     Column(
@@ -90,13 +99,19 @@ fun GameScreen(vm: AppViewModel) {
     ) {
         // Sair (canto superior esquerdo, longe das pedras) e placar
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            // Tocar no placar mostra e fala o histórico de partidas.
             Text(
                 "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
-                modifier = Modifier.semantics {
-                    contentDescription = "Placar, melhor de 5: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
-                },
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .clickable(onClickLabel = "ouvir o histórico") { showHistory = true; vm.speakHistory() }
+                    .padding(6.dp)
+                    .semantics {
+                        contentDescription = "Placar, melhor de 5: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
+                        role = Role.Button
+                    },
             )
             Spacer(Modifier.weight(1f))
             CornerExitButton("Sair do jogo") { vm.backToMenu() }
