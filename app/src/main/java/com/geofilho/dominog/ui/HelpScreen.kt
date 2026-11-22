@@ -74,6 +74,12 @@ private fun helpBlocks(version: String): List<Block> {
                 "ligado, as falas continuam. A escolha fica salva.",
         ),
 
+        p(
+            "Nenhuma tela tem botão de voltar, para não ser tocado sem querer. Para voltar ao menu, use o voltar do " +
+                "Android: o botão voltar, o gesto de voltar ou o gesto de voltar do TalkBack. No jogo e na sala do " +
+                "Bluetooth, o aplicativo pergunta antes se você quer mesmo sair.",
+        ),
+
         h("TELA DO JOGO, NA ORDEM DA VARREDURA"),
         p(
             "1. Placar: mostra as rodadas vencidas por cada um na partida, que é melhor de 5. Tocando no placar, a voz " +
@@ -127,7 +133,10 @@ private fun helpBlocks(version: String): List<Block> {
         ),
         p("5. Conectados, aparecem a foto e o nome do amigo. Qualquer um toca em Iniciar jogo, e o outro toca em Aceitar."),
         p("6. Desconectar: encerra a conexão e deixa a sala aberta de novo."),
-        p("7. Voltar: fica no canto superior direito, por último na varredura, e pede confirmação."),
+        p(
+            "Para sair da sala, use o voltar do Android: o botão voltar, o gesto de voltar ou o gesto de voltar " +
+                "do TalkBack. O jogo pergunta se você quer voltar ao menu, com as opções Sim e Não.",
+        ),
 
         h("JOGAR COM UM PARCEIRO NO MESMO APARELHO"),
         p("1. O Jogador 1 começa a partida. As pedras começam ocultas: toque em Mostrar pedras para ver as suas."),
@@ -216,10 +225,6 @@ fun HelpScreen(vm: AppViewModel) {
             .semantics { isTraversalGroup = true }
             .padding(20.dp),
     ) {
-        Row(Modifier.fillMaxWidth()) {
-            Spacer(Modifier.weight(1f))
-            CornerExitButton("Voltar") { vm.backToMenu() }
-        }
         helpBlocks(version).forEach { b ->
             when (b) {
                 is Block.Title -> Text(

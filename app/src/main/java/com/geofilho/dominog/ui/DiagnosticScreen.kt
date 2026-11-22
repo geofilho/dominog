@@ -60,10 +60,6 @@ fun DiagnosticScreen(vm: AppViewModel) {
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(Modifier.fillMaxWidth()) {
-            Spacer(Modifier.weight(1f))
-            CornerExitButton("Voltar") { vm.backToMenu() }
-        }
         Text(
             "Diagnóstico", fontSize = 28.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(vertical = 12.dp).semantics { heading() },

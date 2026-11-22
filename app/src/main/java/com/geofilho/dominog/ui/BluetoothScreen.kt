@@ -133,10 +133,6 @@ fun BluetoothScreen(vm: AppViewModel) {
             .padding(20.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Spacer(Modifier.weight(1f))
-            CornerExitButton("Voltar", askBack)
-        }
         Text(
             "Jogar pelo Bluetooth", fontSize = 28.sp, fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(vertical = 12.dp).semantics { heading() },
