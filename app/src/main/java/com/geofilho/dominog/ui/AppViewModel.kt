@@ -287,7 +287,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun describe() {
         val r = round ?: return
         val opp = 1 - me
-        say("${boardSummary(r)}. ${spokenName(opp)} tem ${pedras(r.hands[opp].size)}.", flush = true)
+        say("${boardSummary(r)}. ${spokenName(opp)} tem ${pedras(r.hands[opp].size)}. Monte tem ${pedras(r.boneyard.size)}.", flush = true)
     }
 
     fun boardSummary(r: Round): String =

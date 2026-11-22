@@ -37,7 +37,7 @@ private val HELP = listOf(
     "Para pessoas cegas" to
         "O jogo fala cada jogada, as pontas da mesa e de quem é a vez, e tem sons de pedra. " +
         "Funciona com o TalkBack: cada pedra é lida pelo nome. O botão Ouvir mesa diz as pontas da mesa " +
-        "e quantas pedras o adversário tem.",
+        "quantas pedras o adversário tem e quantas há no monte.",
 )
 
 @Composable
