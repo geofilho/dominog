@@ -449,12 +449,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         val mine = p == me
         val hint = if (mine) hintFor(r, p) else ""
         say(text + if (mine) "." else "")
-        if (hint.isNotEmpty()) { status = (status + hint).trim(); focusActionAfterSpeech() }
-        else if (newRound) {
-            // Início da partida: depois da fala, o foco desce para "Suas pedras".
+        // Início da partida: o foco desce para "Suas pedras" quando for a sua vez, depois da fala.
+        // Se outro começa, espera a jogada dele ser falada (senão o TalkBack cortaria a frase).
+        if (newRound) startFocusPending = true
+        if (hint.isNotEmpty()) { startFocusPending = false; status = (status + hint).trim(); focusActionAfterSpeech() }
+        else if (mine && startFocusPending) {
+            startFocusPending = false
             voice.afterQueue { DiagLog.add("FOCO", "início da rodada: levar foco a Suas pedras"); startFocus++ }
         }
     }
+
+    /** O foco de início de rodada ainda não foi levado a "Suas pedras" (espera a sua vez). */
+    private var startFocusPending = false
 
     /** Partida = melhor de 5: vence o lado (jogador ou dupla) que ganhar [WINS_TO_MATCH] rodadas primeiro. */
     val matchOver: Boolean get() = (0 until sideCount).any { scores[it] >= WINS_TO_MATCH }
