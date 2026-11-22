@@ -204,8 +204,17 @@ fun GameScreen(vm: AppViewModel) {
                 val c = choosing
                 if (c != null && res == null) SideChooser(r, c, v, onPick = { s -> choosing = null; vm.play(c, s) }, onCancel = { choosing = null })
                 if (res == null && !vm.shuffling && vm.canAct()) {
-                    if (r.canDraw(me)) ActionButton("Comprar pedra") { vm.draw() }
-                    if (r.mustPass(me)) ActionButton("Passar vez") { vm.pass() }
+                    // Depois de comprar e continuar sem pedra, o foco volta para este botão.
+                    val actionFocus = remember { FocusRequester() }
+                    val seenAction = remember { vm.actionFocus }
+                    if (r.canDraw(me)) ActionButton("Comprar pedra", Modifier.focusRequester(actionFocus)) { vm.draw() }
+                    if (r.mustPass(me)) ActionButton("Passar vez", Modifier.focusRequester(actionFocus)) { vm.pass() }
+                    LaunchedEffect(vm.actionFocus) {
+                        if (vm.actionFocus != seenAction) {
+                            kotlinx.coroutines.delay(200)
+                            runCatching { actionFocus.requestFocus() }
+                        }
+                    }
                 }
             }
         }
@@ -220,8 +229,9 @@ fun GameScreen(vm: AppViewModel) {
 }
 
 /**
- * Sem pedra que encaixe (com leitor de tela): janela cujo primeiro elemento é o botão
- * Comprar pedra / Passar vez — o TalkBack põe o foco direto nele.
+ * Sem pedra que encaixe, na primeira vez da sua vez (com leitor de tela): janela com um botão só,
+ * Comprar pedra / Passar vez, com o foco do TalkBack já nele. As pontas e o monte estão na descrição.
+ * Para fechar sem comprar, use o voltar do Android.
  */
 @Composable
 private fun DrawDialog(vm: AppViewModel, r: Round, me: Int) {
@@ -231,31 +241,25 @@ private fun DrawDialog(vm: AppViewModel, r: Round, me: Int) {
     else "Nenhuma pedra sua encaixa nas pontas ${Words.n(r.leftEnd!!)} e ${Words.n(r.rightEnd!!)}." +
         if (buy) " Monte com ${vm.pedras(r.boneyard.size)}." else " O monte acabou."
     androidx.compose.ui.window.Dialog(onDismissRequest = { vm.dismissDraw() }) {
-        Column(
-            Modifier
-                .clip(RoundedCornerShape(16.dp))
-                .background(Palette.Bg)
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+        val focus = remember { FocusRequester() }
+        LaunchedEffect(Unit) {
+            kotlinx.coroutines.delay(150)
+            runCatching { focus.requestFocus() }
+        }
+        Button(
+            onClick = { if (buy) vm.draw() else vm.pass() },
+            colors = ButtonDefaults.buttonColors(containerColor = Palette.Start, contentColor = Color.White),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 120.dp)
+                .focusRequester(focus)
+                .semantics { contentDescription = "$label. $info" },
         ) {
-            // Primeiro elemento da janela e com o foco pedido ao abrir: o TalkBack já começa nele.
-            val focus = remember { FocusRequester() }
-            LaunchedEffect(Unit) {
-                kotlinx.coroutines.delay(150)
-                runCatching { focus.requestFocus() }
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(label, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                Text(info, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
             }
-            Button(
-                onClick = { if (buy) vm.draw() else vm.pass() },
-                colors = ButtonDefaults.buttonColors(containerColor = Palette.Start, contentColor = Color.White),
-                shape = RoundedCornerShape(50),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = 64.dp)
-                    .focusRequester(focus)
-                    .semantics { contentDescription = "$label. $info" },
-            ) { Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
-            Text(info, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 12.dp))
-            TextButton(onClick = { vm.dismissDraw() }) { Text("Ver minhas pedras") }
         }
     }
 }

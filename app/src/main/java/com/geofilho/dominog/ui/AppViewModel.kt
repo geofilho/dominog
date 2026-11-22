@@ -180,6 +180,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         cpuJob?.cancel()
         val r = Round.deal(starter)
         round = r
+        turnSerial++
         revealed = false
         shuffling = true
         sfx.playShuffle()
@@ -307,6 +308,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun afterChange(before: Snap, r: Round) {
         val turnChanged = before.current != r.current
+        if (turnChanged || r.isOver) turnSerial++
         if (mode == Mode.LOCAL && (turnChanged || r.isOver)) revealed = false
         bump()
 
@@ -528,9 +530,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
      */
     var askDraw by mutableStateOf(false); private set
 
+    /** Conta as vezes (turnos) para a janela de comprar aparecer só uma vez por vez. */
+    private var turnSerial = 0
+    private var drawDialogTurn = -1
+
     private fun focusActionAfterSpeech() = voice.afterQueue {
-        actionFocus++
-        if (screenReaderOn) askDraw = true
+        if (screenReaderOn && drawDialogTurn != turnSerial) {
+            // Primeira vez nesta vez: janela só com o botão Comprar pedra (foco direto nele).
+            drawDialogTurn = turnSerial
+            askDraw = true
+        } else {
+            // Continua sem pedra depois de comprar: foco no botão Comprar pedra da própria tela.
+            actionFocus++
+        }
     }
 
     fun dismissDraw() { askDraw = false }
