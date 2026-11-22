@@ -406,6 +406,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         // Comprou e continua sem pedra que encaixe: avisa de novo e leva o foco ao botão.
         val myTurnNow = !r.isOver && r.current == me && (mode != Mode.LOCAL || revealed)
         val hint = if (!turnChanged && myTurnNow) hintFor(r, me) else ""
+        // Comprou e a pedra comprada encaixa: depois da fala, o foco vai para ela.
+        val bought = if (mode != Mode.LOCAL && !turnChanged && myTurnNow && r.hands[me].size > before.hand(me)) r.hands[me].last() else null
+        if (bought != null && hint.isEmpty() && r.sidesFor(bought).isNotEmpty()) {
+            DiagLog.add("FOCO", "comprou ${Words.tile(bought)}, que encaixa: levar foco a ela depois da fala")
+            voice.afterQueue { tileFocusId = bought.id; tileFocusToken++ }
+        }
         say(sb.toString(), flush = true)
         if (hint.isNotEmpty()) { status = (status + hint).trim(); focusActionAfterSpeech() }
 
@@ -629,6 +635,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
 
     /** Muda quando o foco do TalkBack deve ir para "Suas pedras" (início da rodada e depois que você joga). */
     var startFocus by mutableIntStateOf(0); private set
+    /** Muda quando o foco do TalkBack deve ir para a pedra [tileFocusId] da sua mão (a que você comprou). */
+    var tileFocusToken by mutableIntStateOf(0); private set
+    var tileFocusId = -1; private set
     /** Muda depois da fala do resultado da rodada: o foco do TalkBack vai para o resultado. */
     var resultFocus by mutableIntStateOf(0); private set
 

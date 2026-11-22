@@ -114,7 +114,7 @@ private fun helpBlocks(version: String): List<Block> {
         ),
         p(
             "Para onde vai o foco do TalkBack: no começo de cada rodada, depois da leitura, o foco desce para o " +
-                "título Suas pedras, e o mesmo acontece logo depois que você joga uma pedra. No fim da rodada, depois da leitura do resultado, o foco vai para a frase do " +
+                "título Suas pedras, e o mesmo acontece logo depois que você joga uma pedra. Quando você compra uma pedra que encaixa, o foco vai direto para ela. No fim da rodada, depois da leitura do resultado, o foco vai para a frase do " +
                 "resultado, como Você bateu.\n\n" +
                 "O que o jogo fala e toca:\n" +
                 "- No começo de cada rodada, o som das pedras sendo embaralhadas na mesa.\n" +

@@ -312,6 +312,8 @@ private fun Board(r: Round, @Suppress("UNUSED_PARAMETER") version: Int, autoScro
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun Hand(vm: AppViewModel, r: Round, me: Int, @Suppress("UNUSED_PARAMETER") version: Int, onChoose: (Tile) -> Unit) {
+    // Pedras nativas (por id), para o app poder pôr o foco do TalkBack numa delas.
+    val views = remember { HashMap<Int, NativeTileView>() }
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -320,17 +322,27 @@ private fun Hand(vm: AppViewModel, r: Round, me: Int, @Suppress("UNUSED_PARAMETE
         r.hands[me].forEach { t ->
             // Identidade fixa por pedra: ao jogar uma pedra, as outras continuam sendo os mesmos itens para o TalkBack.
             androidx.compose.runtime.key(t.id) {
-                DominoTile(
-                    t.b, t.a, vertical = true, unit = 34.dp,
-                    modifier = Modifier
-                        .semantics {
-                            contentDescription = "Pedra ${Words.tile(t)}"
-                            role = Role.Button
-                        }
-                        .clickable { if (vm.tapTile(t).size > 1) onChoose(t) },
+                val choose by androidx.compose.runtime.rememberUpdatedState(onChoose)
+                androidx.compose.ui.viewinterop.AndroidView(
+                    factory = { ctx -> NativeTileView(ctx) },
+                    update = { v ->
+                        v.setTile(t.b, t.a, "Pedra ${Words.tile(t)}")
+                        v.setOnClickListener { if (vm.tapTile(t).size > 1) choose(t) }
+                        views[t.id] = v
+                    },
+                    onRelease = { v -> if (views[t.id] === v) views.remove(t.id) },
                 )
             }
         }
+    }
+    // Comprou uma pedra que encaixa: depois da fala, o foco vai direto para ela.
+    val handled = remember { intArrayOf(vm.tileFocusToken) }
+    LaunchedEffect(vm.tileFocusToken) {
+        if (vm.tileFocusToken == handled[0]) return@LaunchedEffect
+        handled[0] = vm.tileFocusToken
+        val v = views[vm.tileFocusId]
+        if (v == null) { DiagLogBridge.add("pedra comprada não encontrada na tela"); return@LaunchedEffect }
+        focusNative(v, "pedra comprada")
     }
 }
 
