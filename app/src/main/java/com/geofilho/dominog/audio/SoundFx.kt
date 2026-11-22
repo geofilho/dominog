@@ -25,6 +25,8 @@ class SoundFx {
     @Volatile private var draw: ShortArray? = null
     @Volatile private var applause: ShortArray? = null
     @Volatile private var open: ShortArray? = null
+    @Volatile private var beep1: ShortArray? = null
+    @Volatile private var beep2: ShortArray? = null
     private val attrs = AudioAttributes.Builder()
         .setUsage(AudioAttributes.USAGE_GAME)
         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
@@ -38,6 +40,8 @@ class SoundFx {
             shuffle = synthShuffle(rnd)
             applause = synthApplause(rnd)
             open = synthOpen(rnd)
+            beep1 = synthBeeps(1)
+            beep2 = synthBeeps(2)
         }
     }
 
@@ -47,6 +51,8 @@ class SoundFx {
     fun playApplause() = play(applause)
     /** Som de "abrir" (porta rangendo + trinco), usado em Mostrar pedras. */
     fun playOpen() = play(open)
+    /** Um bipe = passe para o Jogador 1; dois bipes = passe para o Jogador 2. */
+    fun playBeeps(count: Int) = play(if (count == 1) beep1 else beep2)
 
     private fun play(pcm: ShortArray?) {
         pcm ?: return
@@ -92,6 +98,24 @@ class SoundFx {
                 val thump = sin(2 * PI * low * t).toFloat() * exp(-t * 40f) * 0.35f
                 val v = (noise * 0.6f + ring + thump) * gain
                 out[i] = (v.coerceIn(-1f, 1f) * 26000).toInt().toShort()
+            }
+            return out
+        }
+
+        /** Bipes de 880 Hz (120 ms cada, 110 ms de intervalo) com bordas suaves. */
+        fun synthBeeps(count: Int): ShortArray {
+            val beep = (RATE * 0.12).toInt()
+            val gap = (RATE * 0.11).toInt()
+            val n = count * beep + (count - 1) * gap
+            val out = ShortArray(n)
+            val fade = (RATE * 0.008).toInt()
+            for (k in 0 until count) {
+                val off = k * (beep + gap)
+                for (j in 0 until beep) {
+                    val env = minOf(1f, j / fade.toFloat(), (beep - j) / fade.toFloat())
+                    val v = sin(2 * PI * 880.0 * j / RATE).toFloat() * env * 0.55f
+                    out[off + j] = (v * 32767).toInt().toShort()
+                }
             }
             return out
         }

@@ -299,10 +299,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 return
             }
             val pass = "Passe para o ${spokenName(p).lowercase()}"
-            // Com TalkBack, o próprio leitor fala o aviso quando o foco chega nele
-            // (depois das outras informações); sem TalkBack, fala a voz do app.
-            if (screenReaderOn) status = pass else say(pass)
-            voice.afterQueue { curtainFocus++ }
+            status = pass
+            // Depois das informações da jogada: bipes (1 = Jogador 1, 2 = Jogador 2) e o aviso.
+            // Com TalkBack, o próprio leitor fala o aviso quando o foco chega nele;
+            // sem TalkBack, fala a voz do app.
+            voice.afterQueue {
+                sfx.playBeeps(p + 1)
+                viewModelScope.launch {
+                    delay(if (p == 0) 250 else 480)
+                    if (screenReaderOn) curtainFocus++ else voice.speak(pass)
+                }
+            }
             return
         }
         val mine = p == me
