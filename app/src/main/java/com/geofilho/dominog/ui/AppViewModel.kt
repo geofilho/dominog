@@ -218,8 +218,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val text = "Mostrando pedras." + (if (r != null) hintFor(r, r.current) else "")
         status = text
         // A voz entra logo depois do som de abrir.
-        viewModelScope.launch { delay(550); voice.speak(text, flush = true) }
+        if (partnerVoiceOn) viewModelScope.launch { delay(550); voice.speak(text, flush = true) }
     }
+
+    /**
+     * Avisos do modo parceiro ("Mostrando pedras", "Passe para o jogador"): falam mesmo sem leitor de tela,
+     * a não ser que os sons do jogo estejam silenciados (aí só falam para quem usa leitor de tela).
+     */
+    private val partnerVoiceOn get() = screenReaderOn || !soundsMuted
 
     /** Informado pela tela: leitor de tela (TalkBack) ligado. */
     var screenReaderOn = false
@@ -335,7 +341,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 sfx.playBeeps(p + 1)
                 viewModelScope.launch {
                     delay(if (p == 0) 250 else 480)
-                    if (screenReaderOn) curtainFocus++ else voice.speak(pass)
+                    if (screenReaderOn) curtainFocus++ else if (partnerVoiceOn) voice.speak(pass)
                 }
             }
             return

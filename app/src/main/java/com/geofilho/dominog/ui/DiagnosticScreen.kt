@@ -95,7 +95,7 @@ fun DiagnosticScreen(vm: AppViewModel) {
             Column(Modifier.weight(1f)) {
                 Text("Silenciar sons do jogo", fontSize = 19.sp)
                 Text(
-                    "Cala embaralhar, pedras, bipes, porta e aplausos. As falas continuam.",
+                    "Cala embaralhar, pedras, bipes, porta, aplausos e os avisos falados do modo parceiro. A fala do leitor de tela continua.",
                     fontSize = 14.sp, color = Palette.Text.copy(alpha = 0.75f),
                 )
             }
