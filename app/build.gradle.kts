@@ -14,8 +14,9 @@ android {
         applicationId = "com.geofilho.dominog"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        // No GitHub Actions cada build ganha um número maior, permitindo atualizar por cima.
+        versionCode = (System.getenv("GITHUB_RUN_NUMBER") ?: "1").toInt()
+        versionName = "1.0.${System.getenv("GITHUB_RUN_NUMBER") ?: "0"}"
         resourceConfigurations += listOf("pt", "pt-rBR")
     }
 
@@ -24,7 +25,8 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Assinado com a chave de debug para facilitar testes; troque pela sua keystore ao publicar.
+            // Assinado com a chave de debug (mantida fixa pelo cache do GitHub Actions) para testes;
+            // para publicar na Play Store use uma keystore própria guardada em segredo.
             signingConfig = signingConfigs.getByName("debug")
         }
     }

@@ -17,6 +17,13 @@ jobs:
           distribution: temurin
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
+      # Mantém a mesma chave de assinatura em todos os builds, para o APK
+      # poder ser instalado por cima da versão anterior.
+      - name: Chave de assinatura fixa
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: dominog-debug-keystore-v1
       - name: Testes e build
         run: |
           chmod +x gradlew
