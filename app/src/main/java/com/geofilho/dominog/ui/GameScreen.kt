@@ -23,7 +23,9 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -84,15 +86,19 @@ fun GameScreen(vm: AppViewModel) {
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // 1) Placar
-        Text(
-            "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
-            fontWeight = FontWeight.Bold,
-            fontSize = 18.sp,
-            modifier = Modifier.semantics {
-                contentDescription = "Placar: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
-            },
-        )
+        // Sair (canto superior esquerdo, longe das pedras) e placar
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedButton(onClick = { vm.backToMenu() }) { Text("Sair do jogo") }
+            Spacer(Modifier.weight(1f))
+            Text(
+                "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
+                fontWeight = FontWeight.Bold,
+                fontSize = 17.sp,
+                modifier = Modifier.semantics {
+                    contentDescription = "Placar: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
+                },
+            )
+        }
         Spacer(Modifier.height(6.dp))
         // Linha de status amarela (só visual: a voz do app já fala tudo, o TalkBack não repete).
         Text(
@@ -176,9 +182,7 @@ fun GameScreen(vm: AppViewModel) {
                 Text("Ouvir mesa")
             }
         }
-        OutlinedButton(onClick = { vm.backToMenu() }, modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)) {
-            Text("Sair do jogo")
-        }
+        Spacer(Modifier.height(16.dp))
     }
 }
 
@@ -259,14 +263,19 @@ private fun Hand(vm: AppViewModel, r: Round, me: Int, @Suppress("UNUSED_PARAMETE
 
 @Composable
 private fun SideChooser(r: Round, t: Tile, @Suppress("UNUSED_PARAMETER") version: Int, onPick: (Side) -> Unit, onCancel: () -> Unit) {
-    Column(Modifier.padding(top = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("Jogar ${Words.tile(t)} em qual ponta?")
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.padding(top = 6.dp)) {
-            ActionButton("Esquerda (${r.leftEnd})") { onPick(Side.LEFT) }
-            ActionButton("Direita (${r.rightEnd})") { onPick(Side.RIGHT) }
-        }
-        OutlinedButton(onClick = onCancel) { Text("Cancelar") }
-    }
+    // Diálogo: o TalkBack move o foco para ele automaticamente.
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Jogar ${Words.tile(t)} em qual ponta?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                ActionButton("Ponta esquerda, ${Words.n(r.leftEnd!!)}") { onPick(Side.LEFT) }
+                ActionButton("Ponta direita, ${Words.n(r.rightEnd!!)}") { onPick(Side.RIGHT) }
+            }
+        },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancelar") } },
+    )
 }
 
 /** Modo mesmo aparelho: pedras ocultas até o jogador da vez tocar em "Mostrar pedras". */

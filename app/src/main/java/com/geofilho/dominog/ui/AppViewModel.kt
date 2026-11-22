@@ -287,7 +287,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun describe() {
         val r = round ?: return
         val opp = 1 - me
-        say("${boardSummary(r)}. ${spokenName(opp)} tem ${pedras(r.hands[opp].size)}. Monte tem ${pedras(r.boneyard.size)}.", flush = true)
+        val sb = StringBuilder()
+        if (r.board.isNotEmpty()) sb.append("Ponta esquerda ${Words.n(r.leftEnd!!)}, ponta direita ${Words.n(r.rightEnd!!)}. ")
+        sb.append("${spokenName(opp)} tem ${pedras(r.hands[opp].size)}. ")
+        sb.append(if (r.board.isEmpty()) "Mesa vazia. " else "Mesa com ${pedras(r.board.size)}. ")
+        // O monte só é informado depois que alguém comprar a primeira pedra.
+        if (r.boneyard.size < 14) sb.append("Monte tem ${pedras(r.boneyard.size)}.")
+        say(sb.toString(), flush = true)
     }
 
     fun boardSummary(r: Round): String =
