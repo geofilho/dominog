@@ -67,7 +67,7 @@ private fun helpBlocks(version: String): List<Block> {
                 "baixar e instalar. O botão também informa a versão instalada.\n" +
                 "- Compartilhar jogo: abre o compartilhamento do Android com este texto, já com o número da versão " +
                 "mais recente e o link para baixar, para enviar aos amigos.\n" +
-                "- Ver relatório: mostra os dados do aparelho, do sistema, do Bluetooth e da voz, e pode ser copiado " +
+                "- Ver relatório: mostra os dados do aparelho, do sistema, da tela, da memória, do TalkBack, do Bluetooth e da voz, e pode ser copiado " +
                 "ou compartilhado, para ajudar a resolver problemas.\n" +
                 "- Registrar o foco do TalkBack: chave que vem desligada. Ligada, o aplicativo anota para onde o foco do " +
                 "TalkBack vai, os toques e os momentos do jogo. Depois de jogar, toque em Ver relatório e compartilhe, " +

@@ -166,12 +166,37 @@ private fun buildReport(ctx: Context, vm: AppViewModel): String {
     }.getOrNull() ?: "?"
     return buildString {
         appendLine("Dominó G versão ${vm.updater.installedVersionName} (${vm.updater.installedVersion})")
-        appendLine("Aparelho: ${Build.MANUFACTURER} ${Build.MODEL}")
-        appendLine("Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        appendLine("Aparelho: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
+        appendLine("Android ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT}), compilação ${Build.DISPLAY}")
+        // Tela
+        val dm = ctx.resources.displayMetrics
+        val cfg = ctx.resources.configuration
+        val inches = runCatching {
+            val wIn = dm.widthPixels / dm.xdpi; val hIn = dm.heightPixels / dm.ydpi
+            String.format(java.util.Locale.US, "%.1f", kotlin.math.sqrt(wIn * wIn + hIn * hIn))
+        }.getOrDefault("?")
+        appendLine("Tela: ${dm.widthPixels} x ${dm.heightPixels} pixels, ${cfg.screenWidthDp} x ${cfg.screenHeightDp} dp, densidade ${dm.densityDpi} dpi (${dm.density}x), cerca de $inches polegadas")
+        appendLine("Tamanho da fonte do sistema: ${cfg.fontScale}x")
+        appendLine("Tamanho de exibição (zoom): ${cfg.densityDpi} dpi")
+        appendLine("Modo escuro: ${if ((cfg.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) == android.content.res.Configuration.UI_MODE_NIGHT_YES) "ligado" else "desligado"}")
+        appendLine("Orientação: ${if (cfg.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) "deitada" else "em pé"}")
+        // Memória e espaço
+        runCatching {
+            val am2 = ctx.getSystemService(Context.ACTIVITY_SERVICE) as android.app.ActivityManager
+            val mi = android.app.ActivityManager.MemoryInfo().also { am2.getMemoryInfo(it) }
+            val st = android.os.StatFs(ctx.filesDir.path)
+            appendLine("Memória: ${mi.totalMem / 1_048_576} MB no total, ${mi.availMem / 1_048_576} MB livres${if (mi.lowMemory) " (pouca memória)" else ""}")
+            appendLine("Espaço livre no aparelho: ${st.availableBytes / 1_048_576} MB")
+        }
         appendLine("Leitor de tela ligado: ${if (am.isTouchExplorationEnabled) "sim" else "não"}")
         appendLine("Serviços com fala: $readers")
+        val talkback = runCatching {
+            ctx.packageManager.getPackageInfo("com.google.android.marvin.talkback", 0).versionName
+        }.getOrNull()
+        appendLine("Versão do TalkBack: ${talkback ?: "não instalado"}")
         appendLine("Motor de voz padrão: $tts")
         appendLine("Voz do app: ${if (vm.voice.isReady) "pronta" else "não iniciou"}")
+        appendLine("Silenciar sons do jogo: ${if (vm.soundsMuted) "ligado" else "desligado"}")
         appendLine("Bluetooth: ${when { bt == null -> "não existe"; bt.isEnabled -> "ligado"; else -> "desligado" }}")
         appendLine("Estado da conexão: ${vm.link.state.value}")
         appendLine("Nome salvo: ${vm.playerName.ifBlank { "(nenhum)" }}")

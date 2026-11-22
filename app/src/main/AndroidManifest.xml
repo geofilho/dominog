@@ -21,6 +21,8 @@
 
     <!-- Voz do app (TextToSpeech) no Android 11+ -->
     <queries>
+        <!-- Diagnóstico: ler a versão do TalkBack para o relatório -->
+        <package android:name="com.google.android.marvin.talkback" />
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
