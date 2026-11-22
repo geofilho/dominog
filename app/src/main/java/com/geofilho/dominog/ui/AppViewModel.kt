@@ -116,6 +116,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun saveName(name: String) {
         playerName = name.replace('|', ' ').trim().take(20)
+            .split(' ').filter { it.isNotEmpty() }
+            .joinToString(" ") { w -> w.replaceFirstChar { it.uppercaseChar() } }
         prefs.edit().putString("name", playerName).apply()
     }
 
@@ -123,15 +125,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun newMatch() {
         scores.fill(0)
         round = null
-        dealRound(null)
+        // Parceiro no mesmo aparelho: o Jogador 1 sempre começa, já com as pedras à mostra
+        // (é ele quem está com o aparelho). Nos outros modos, quem começa é sorteado.
+        if (mode == Mode.LOCAL) dealRound(0, revealNow = true) else dealRound(null)
         screen = Screen.GAME
     }
 
-    private fun dealRound(starter: Int?) {
+    private fun dealRound(starter: Int?, revealNow: Boolean = false) {
         cpuJob?.cancel()
         val r = Round.deal(starter)
         round = r
-        revealed = false
+        revealed = revealNow
         shuffling = true
         sfx.playShuffle()
         say("Embaralhando as pedras", flush = true)

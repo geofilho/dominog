@@ -47,6 +47,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -109,7 +110,7 @@ fun BluetoothScreen(vm: AppViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            OutlinedButton(onClick = { vm.backToMenu() }) { Text("Menu") }
+            OutlinedButton(onClick = { vm.backToMenu() }) { Text("Voltar") }
         }
         Text(
             "Jogar via Bluetooth", fontSize = 28.sp, fontWeight = FontWeight.Bold,
@@ -202,7 +203,10 @@ private fun NameEditor(initial: String, onSave: (String) -> Unit) {
         onValueChange = { name = it.take(20) },
         label = { Text("Seu nome") },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+        keyboardOptions = KeyboardOptions(
+            capitalization = KeyboardCapitalization.Words,
+            imeAction = ImeAction.Done,
+        ),
         keyboardActions = KeyboardActions(onDone = { if (name.isNotBlank()) onSave(name) }),
         modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
     )
