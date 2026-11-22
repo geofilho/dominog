@@ -20,14 +20,25 @@ android {
         resourceConfigurations += listOf("pt", "pt-rBR")
     }
 
+    // No GitHub Actions o APK é assinado sempre com a mesma chave (guardada no cache do
+    // Actions), para poder atualizar por cima. Localmente usa a chave de debug.
+    val keystorePath = System.getenv("DOMINOG_KEYSTORE")
+    if (keystorePath != null) {
+        signingConfigs.create("fixa") {
+            storeFile = file(keystorePath)
+            storePassword = System.getenv("DOMINOG_KEYSTORE_PASS")
+            keyAlias = "dominog"
+            keyPassword = System.getenv("DOMINOG_KEYSTORE_PASS")
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            // Assinado com a chave de debug (mantida fixa pelo cache do GitHub Actions) para testes;
-            // para publicar na Play Store use uma keystore própria guardada em segredo.
-            signingConfig = signingConfigs.getByName("debug")
+            // Para publicar na Play Store, use uma keystore própria guardada em segredo.
+            signingConfig = signingConfigs.findByName("fixa") ?: signingConfigs.getByName("debug")
         }
     }
     compileOptions {

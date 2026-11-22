@@ -18,12 +18,25 @@ jobs:
           java-version: 17
       - uses: gradle/actions/setup-gradle@v4
       # Mantém a mesma chave de assinatura em todos os builds, para o APK
-      # poder ser instalado por cima da versão anterior.
-      - name: Chave de assinatura fixa
+      # poder ser instalado por cima da versão anterior. A chave é criada uma vez
+      # e fica guardada no cache do Actions (nunca no repositório).
+      - name: Restaurar chave de assinatura
         uses: actions/cache@v4
         with:
-          path: ~/.android/debug.keystore
-          key: dominog-debug-keystore-v1
+          path: ~/dominog-chave
+          key: dominog-chave-assinatura-v1
+      - name: Criar chave de assinatura (só na primeira vez)
+        run: |
+          mkdir -p ~/dominog-chave
+          if [ ! -f ~/dominog-chave/chave.jks ]; then
+            head -c 24 /dev/urandom | base64 | tr -dc 'A-Za-z0-9' > ~/dominog-chave/senha.txt
+            keytool -genkeypair -keystore ~/dominog-chave/chave.jks -alias dominog \
+              -storepass "$(cat ~/dominog-chave/senha.txt)" -keypass "$(cat ~/dominog-chave/senha.txt)" \
+              -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Domino G, C=BR"
+          fi
+          echo "::add-mask::$(cat ~/dominog-chave/senha.txt)"
+          echo "DOMINOG_KEYSTORE=$HOME/dominog-chave/chave.jks" >> "$GITHUB_ENV"
+          echo "DOMINOG_KEYSTORE_PASS=$(cat ~/dominog-chave/senha.txt)" >> "$GITHUB_ENV"
       - name: Testes e build
         run: |
           chmod +x gradlew
