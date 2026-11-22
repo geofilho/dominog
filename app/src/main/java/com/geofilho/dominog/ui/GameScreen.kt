@@ -73,6 +73,7 @@ import kotlin.random.Random
 fun GameScreen(vm: AppViewModel) {
     val askExit = rememberConfirm("Deseja sair do jogo?") { vm.backToMenu() }
     val screenReader = rememberScreenReaderOn()
+    // Voltar do Android (botão, gesto padrão ou gesto de voltar do TalkBack): pergunta antes de sair.
     BackHandler { askExit() }
     // A rodada é um objeto mutável: [v] muda a cada jogada e é passado às partes da tela
     // para que o Compose as redesenhe (senão ele reaproveita o desenho antigo).
@@ -102,8 +103,13 @@ fun GameScreen(vm: AppViewModel) {
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        // Sair (canto superior esquerdo, longe das pedras) e placar
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        // Placar. Não há botão de sair na tela: para sair, use o Voltar do Android
+        // (botão, gesto ou gesto do TalkBack), que pergunta antes.
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             // Tocar no placar mostra e fala o histórico de partidas.
             Text(
                 "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
@@ -118,8 +124,6 @@ fun GameScreen(vm: AppViewModel) {
                         role = Role.Button
                     },
             )
-            Spacer(Modifier.weight(1f))
-            CornerExitButton("Sair do jogo", askExit)
         }
         Spacer(Modifier.height(6.dp))
         // Linha de status amarela (só visual: a voz do app já fala tudo, o TalkBack não repete).

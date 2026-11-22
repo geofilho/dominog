@@ -98,8 +98,9 @@ private fun helpBlocks(version: String): List<Block> {
                 "quantas pedras estão na mesa e, depois que alguém comprar a primeira pedra, quantas restam no monte.",
         ),
         p(
-            "9. Sair do jogo: fica no canto superior direito e por último na varredura, para não ser tocado sem " +
-                "querer. Pede confirmação antes de sair.",
+            "9. Sair do jogo: não há botão de sair na tela, para não ser tocado sem querer durante a partida. " +
+                "Use o botão Voltar do Android, o gesto de voltar do Android ou o gesto de voltar do TalkBack. " +
+                "O jogo pergunta \"Deseja sair do jogo?\": toque em Sim para voltar ao menu ou em Não para continuar jogando.",
         ),
         p(
             "O que o jogo fala e toca:\n" +
