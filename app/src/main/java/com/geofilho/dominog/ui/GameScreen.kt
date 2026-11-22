@@ -316,7 +316,7 @@ private fun Curtain(vm: AppViewModel, @Suppress("UNUSED_PARAMETER") version: Int
             if (vm.curtainFocus != seen) runCatching { focus.requestFocus() }
         }
         Text(
-            "Passe para o ${vm.nameOf(r.current)}",
+            if (r.board.isEmpty()) "${vm.nameOf(r.current)} começa" else "Passe para o ${vm.nameOf(r.current)}",
             fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
             modifier = Modifier
                 .padding(vertical = 10.dp)

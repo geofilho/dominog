@@ -137,17 +137,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun newMatch() {
         scores.fill(0)
         round = null
-        // Parceiro no mesmo aparelho: o Jogador 1 sempre começa, já com as pedras à mostra
-        // (é ele quem está com o aparelho). Nos outros modos, quem começa é sorteado.
-        if (mode == Mode.LOCAL) dealRound(0, revealNow = true) else dealRound(null)
+        // Parceiro no mesmo aparelho: o Jogador 1 sempre começa (com as pedras ocultas até
+        // tocar em Mostrar pedras). Nos outros modos, quem começa é sorteado.
+        if (mode == Mode.LOCAL) dealRound(0) else dealRound(null)
         screen = Screen.GAME
     }
 
-    private fun dealRound(starter: Int?, revealNow: Boolean = false) {
+    private fun dealRound(starter: Int?) {
         cpuJob?.cancel()
         val r = Round.deal(starter)
         round = r
-        revealed = revealNow
+        revealed = false
         shuffling = true
         sfx.playShuffle()
         say("Embaralhando as pedras", flush = true)
@@ -170,11 +170,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             else -> {
                 val res = r.result!!
                 val starter = if (res.winner >= 0) res.winner else 1 - r.current
-                // Mesmo aparelho: quem fez a última ação está com o aparelho na mão
-                // (quem bateu, ou quem passou por último no jogo trancado).
-                // Se for ele quem começa, as pedras já aparecem.
-                val holder = if (res.reason == EndReason.BATIDA) res.winner else r.current
-                dealRound(starter, revealNow = mode == Mode.LOCAL && starter == holder)
+                dealRound(starter)
             }
         }
     }
@@ -297,12 +293,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             else -> if (p == me) "Sua vez" else if (newRound) "${nameOf(p)} começa" else ""
         }
         if (mode == Mode.LOCAL) {
-            if (revealed) {
-                // Início da partida: o Jogador 1 (ou quem bateu) já está com o aparelho.
-                say("${spokenName(p)}, sua vez." + hintFor(r, p))
-                return
-            }
-            val pass = "Passe para o ${spokenName(p).lowercase()}"
+            val pass = if (newRound) "${spokenName(p)} começa" else "Passe para o ${spokenName(p).lowercase()}"
             status = pass
             // Depois das informações da jogada: bipes (1 = Jogador 1, 2 = Jogador 2) e o aviso.
             // Com TalkBack, o próprio leitor fala o aviso quando o foco chega nele;
