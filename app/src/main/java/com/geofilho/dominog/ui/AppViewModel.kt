@@ -2,6 +2,7 @@ package com.geofilho.dominog.ui
 
 import android.app.Application
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -10,8 +11,12 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.geofilho.dominog.audio.SoundFx
 import com.geofilho.dominog.bt.BtLink
-import com.geofilho.dominog.bt.LinkState
+import com.geofilho.dominog.bt.BtSession
+import com.geofilho.dominog.bt.FoundDevice
+import com.geofilho.dominog.bt.LinkEvent
+import com.geofilho.dominog.bt.Member
 import com.geofilho.dominog.bt.Proto
+import com.geofilho.dominog.bt.Transport
 import com.geofilho.dominog.game.Ai
 import com.geofilho.dominog.game.EndReason
 import com.geofilho.dominog.game.Level
@@ -23,21 +28,26 @@ import com.geofilho.dominog.profile.Avatar
 import com.geofilho.dominog.speech.Voice
 import com.geofilho.dominog.update.UpdateState
 import com.geofilho.dominog.update.Updater
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 enum class Screen { MENU, BLUETOOTH, GAME, HELP, DIAGNOSTIC }
 
 /** Rodadas vencidas para ganhar a partida (melhor de 5). */
 const val WINS_TO_MATCH = 3
-enum class Mode { CPU, LOCAL, BT_HOST, BT_GUEST }
 
-class AppViewModel(app: Application) : AndroidViewModel(app) {
+enum class Mode { CPU, LOCAL, BT }
+
+class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener {
     private val prefs = app.getSharedPreferences("dominog", Context.MODE_PRIVATE)
     val voice = Voice(app)
     val history = History(prefs)
     val updater = Updater(app)
+    val sfx = SoundFx()
+    val link = BtLink(app)
 
     /** Chave "Silenciar sons do jogo" (Diagnóstico): cala os efeitos, mantém as falas. */
     var soundsMuted by mutableStateOf(prefs.getBoolean("sons_mudos", false)); private set
@@ -48,9 +58,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         prefs.edit().putBoolean("sons_mudos", m).apply()
         say(if (m) "Sons do jogo silenciados" else "Sons do jogo ativados", flush = true)
     }
+
     var updateState by mutableStateOf<UpdateState>(UpdateState.Idle); private set
-    val sfx = SoundFx()
-    val link = BtLink(app)
 
     var screen by mutableStateOf(Screen.MENU); private set
     var mode by mutableStateOf(Mode.CPU); private set
@@ -59,7 +68,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     var round: Round? = null; private set
     /** Incrementa a cada mudança na rodada para a interface se redesenhar. */
     var version by mutableIntStateOf(0); private set
-    val scores = IntArray(2)
+    /** Placar por lado: jogador (2 ou 3 jogadores) ou dupla (4 jogadores). */
+    val scores = IntArray(4)
     /** Modo mesmo aparelho: as pedras do jogador da vez estão à mostra? */
     var revealed by mutableStateOf(false); private set
     /** Animação das pedras rolando na mesa. */
@@ -68,74 +78,132 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     // ---------- Bluetooth ----------
     var playerName by mutableStateOf(prefs.getString("name", "") ?: ""); private set
-    var friendName by mutableStateOf(""); private set
     var myPhoto by mutableStateOf(Avatar.load(app)); private set
-    var friendPhoto by mutableStateOf<android.graphics.Bitmap?>(null); private set
 
-    fun setPhoto(b: android.graphics.Bitmap?) {
-        val app = getApplication<Application>()
-        if (b == null) { Avatar.delete(app); myPhoto = null; say("Foto removida", flush = true); return }
-        myPhoto = Avatar.save(app, b)
-        say("Foto salva", flush = true)
-    }
+    /** Identificação deste aparelho na sala (fica salva). */
+    private val myId: String = prefs.getString("bt_id", null)
+        ?: java.util.UUID.randomUUID().toString().take(8).also { prefs.edit().putString("bt_id", it).apply() }
 
-    fun photoFromGallery(uri: android.net.Uri) {
-        viewModelScope.launch {
-            val b = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Avatar.decode(getApplication(), uri) }
-            if (b != null) setPhoto(b) else say("Não foi possível abrir a foto", flush = true)
-        }
-    }
-    var inviteReceived by mutableStateOf(false); private set
+    val session = BtSession(
+        myId,
+        playerName.ifBlank { "Amigo" },
+        object : Transport {
+            override fun send(linkId: Int, line: String) = link.send(linkId, line)
+            override fun close(linkId: Int) = link.close(linkId)
+        },
+        this,
+    )
+
+    /** Muda quando a sala muda (jogadores, duplas, fotos) para a tela se redesenhar. */
+    var roomVersion by mutableIntStateOf(0); private set
+    /** Fotos dos jogadores da sala, por id. */
+    val photos = HashMap<String, Bitmap>()
+    /** Ids dos jogadores em cada lugar da mesa (ordem das vezes) no jogo pelo Bluetooth. */
+    private var seatIds: List<String> = emptyList()
+    private var lastRosterIds: Set<String> = setOf(myId)
+
+    fun isMe(m: Member) = m.id == myId
+
+    /** Nome de quem convidou (mostra o diálogo Aceitar/Recusar). */
+    var inviteFrom by mutableStateOf<String?>(null); private set
     var waitingAccept by mutableStateOf(false); private set
     var lobbyMessage by mutableStateOf<String?>(null)
 
     init {
         sfx.muted = soundsMuted
-        viewModelScope.launch { link.incoming.collect(::onMessage) }
+        myPhoto?.let { photos[myId] = it; session.setMyPhoto(Avatar.encode(it)) }
         viewModelScope.launch {
-            link.state.collect { st ->
-                when (st) {
-                    LinkState.Connected -> {
-                        // O papel vem da própria conexão: quem recebeu é o anfitrião (comanda o jogo).
-                        mode = if (link.isHost) Mode.BT_HOST else Mode.BT_GUEST
-                        link.stopScan()
-                        link.send("${Proto.HELLO}|$playerName")
-                        myPhoto?.let { link.send("${Proto.PHOTO}|${Avatar.encode(it)}") }
-                        say("Conectado", flush = true)
-                    }
-                    is LinkState.Failed -> if (mode == Mode.BT_HOST || mode == Mode.BT_GUEST) {
-                        friendName = ""; friendPhoto = null; inviteReceived = false; waitingAccept = false
-                        if (screen == Screen.GAME) {
-                            screen = Screen.BLUETOOTH
-                            lobbyMessage = st.message
-                            say(st.message, flush = true)
-                        }
-                    }
-                    else -> {}
+            link.events.collect { e ->
+                when (e) {
+                    is LinkEvent.Opened -> { link.stopScan(); session.onOpened(e.id, e.accepted) }
+                    is LinkEvent.Line -> session.onLine(e.id, e.text)
+                    is LinkEvent.Closed -> session.onClosed(e.id)
                 }
             }
         }
+        viewModelScope.launch {
+            link.errors.collect { msg -> lobbyMessage = msg; say(msg, flush = true) }
+        }
     }
+
+    fun setPhoto(b: Bitmap?) {
+        val app = getApplication<Application>()
+        if (b == null) {
+            Avatar.delete(app); myPhoto = null; photos.remove(myId); session.setMyPhoto(null)
+            roomVersion++
+            say("Foto removida", flush = true)
+            return
+        }
+        val saved = Avatar.save(app, b)
+        myPhoto = saved
+        photos[myId] = saved
+        session.setMyPhoto(Avatar.encode(saved))
+        roomVersion++
+        say("Foto salva", flush = true)
+    }
+
+    fun photoFromGallery(uri: android.net.Uri) {
+        viewModelScope.launch {
+            val b = withContext(Dispatchers.IO) { Avatar.decode(getApplication(), uri) }
+            if (b != null) setPhoto(b) else say("Não foi possível abrir a foto", flush = true)
+        }
+    }
+
+    // =================== Jogadores e lados ===================
 
     /** Índice do jogador cujas pedras este aparelho mostra. */
     val me: Int
         get() = when (mode) {
-            Mode.CPU, Mode.BT_HOST -> 0
-            Mode.BT_GUEST -> 1
+            Mode.CPU -> 0
+            Mode.BT -> seatIds.indexOf(myId).coerceAtLeast(0)
             Mode.LOCAL -> round?.current ?: 0
         }
+
+    /** Número de jogadores da rodada atual. */
+    val players: Int get() = round?.n ?: 2
+
+    fun sideOf(p: Int): Int = round?.sideOf(p) ?: p
+    val sideCount: Int get() = round?.sides ?: 2
 
     fun nameOf(p: Int): String = when (mode) {
         Mode.CPU -> if (p == 0) "Você" else "Computador"
         Mode.LOCAL -> if (p == 0) "Jogador 1" else "Jogador 2"
-        Mode.BT_HOST -> if (p == 0) playerName else friendName.ifBlank { "Amigo" }
-        Mode.BT_GUEST -> if (p == 1) playerName else friendName.ifBlank { "Amigo" }
+        Mode.BT -> seatIds.getOrNull(p)?.let { if (it == myId) playerName.ifBlank { "Você" } else session.nameOf(it) } ?: "Amigo"
     }
 
     private fun spokenName(p: Int) = when (mode) {
         Mode.LOCAL -> if (p == 0) "Jogador um" else "Jogador dois"
         else -> nameOf(p)
     }
+
+    /** Nome do lado: o jogador, ou os dois nomes da dupla. */
+    fun sideName(side: Int): String =
+        if (players == 4) (0 until 4).filter { sideOf(it) == side }.joinToString(" e ") { nameOf(it) }
+        else nameOf(side)
+
+    private fun spokenSide(side: Int): String =
+        if (players == 4) "dupla " + (0 until 4).filter { sideOf(it) == side }.joinToString(" e ") { spokenName(it) }
+        else spokenName(side)
+
+    /** Placar para a tela: "Ana 1 × 0 Bia" (2 lados) ou separado por pontos (3 jogadores). */
+    fun placarDisplay(): String =
+        if (sideCount == 2) "${sideName(0)} ${scores[0]}  ×  ${scores[1]} ${sideName(1)}"
+        else (0 until sideCount).joinToString("  ·  ") { "${sideName(it)} ${scores[it]}" }
+
+    /** Placar falado: "Você 2, Computador 1". */
+    fun placarText(): String = (0 until sideCount).joinToString(", ") { "${spokenSide(it)} ${scores[it]}" }
+
+    /** Os outros jogadores, na ordem em que jogam depois deste aparelho. */
+    fun others(): List<Int> {
+        val r = round ?: return emptyList()
+        return (1 until r.n).map { (me + it) % r.n }
+    }
+
+    /** Com 4 jogadores: este jogador é meu parceiro? */
+    fun isPartner(p: Int): Boolean = players == 4 && p != me && sideOf(p) == sideOf(me)
+
+    /** Este aparelho comanda a rodada (computador, parceiro, ou quem comanda a sala do Bluetooth)? */
+    private val isAuthority: Boolean get() = mode != Mode.BT || session.isRoot
 
     // =================== Navegação ===================
     /** Nível do computador escolhido no menu. */
@@ -150,11 +218,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun backToMenu() {
         cpuJob?.cancel()
         voice.stop()
-        if (mode == Mode.BT_HOST || mode == Mode.BT_GUEST || screen == Screen.BLUETOOTH) {
-            if (link.state.value == LinkState.Connected) link.send(Proto.BYE)
-            link.disconnect()
-            friendName = ""; friendPhoto = null; inviteReceived = false; waitingAccept = false
-        }
+        if (mode == Mode.BT || screen == Screen.BLUETOOTH) leaveRoom()
         round = null
         screen = Screen.MENU
     }
@@ -164,6 +228,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             .split(' ').filter { it.isNotEmpty() }
             .joinToString(" ") { w -> w.replaceFirstChar { it.uppercaseChar() } }
         prefs.edit().putString("name", playerName).apply()
+        session.myName = playerName
     }
 
     // =================== Partida ===================
@@ -174,11 +239,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         // tocar em Mostrar pedras). Nos outros modos, quem começa é sorteado.
         if (mode == Mode.LOCAL) dealRound(0) else dealRound(null)
         screen = Screen.GAME
+        waitingAccept = false
     }
 
     private fun dealRound(starter: Int?) {
         cpuJob?.cancel()
-        val r = Round.deal(starter)
+        val n = if (mode == Mode.BT) seatIds.size.coerceIn(2, 4) else 2
+        val r = Round.deal(starter, n = n)
         round = r
         revealed = false
         shuffling = true
@@ -198,11 +265,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val r = round ?: return
         if (!r.isOver) return
         when {
-            mode == Mode.BT_GUEST -> link.send(Proto.NEXT)
+            !isAuthority -> session.sendToRoot(Proto.NEXT)
             matchOver -> newMatch() // fim da melhor de 5: começa outra partida
             else -> {
                 val res = r.result!!
-                val starter = if (res.winner >= 0) res.winner else 1 - r.current
+                // Começa quem bateu (ou venceu o trancado); em empate, o próximo da vez.
+                val starter = if (res.winner >= 0) res.winner else r.next(r.current)
                 dealRound(starter)
             }
         }
@@ -241,19 +309,19 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     fun play(t: Tile, side: Side) {
         if (!canAct()) return
-        if (mode == Mode.BT_GUEST) { link.send("${Proto.PLAY}|${t.id}|${side.ordinal}"); return }
+        if (!isAuthority) { session.sendToRoot("${Proto.PLAY}|$me|${t.id}|${side.ordinal}"); return }
         act(me) { it.play(me, t, side) }
     }
 
     fun draw() {
         if (!canAct()) return
-        if (mode == Mode.BT_GUEST) { link.send(Proto.DRAW); return }
+        if (!isAuthority) { session.sendToRoot("${Proto.DRAW}|$me"); return }
         act(me) { it.draw(me) != null }
     }
 
     fun pass() {
         if (!canAct()) return
-        if (mode == Mode.BT_GUEST) { link.send(Proto.PASS); return }
+        if (!isAuthority) { session.sendToRoot("${Proto.PASS}|$me"); return }
         act(me) { it.pass(me) }
     }
 
@@ -295,12 +363,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     // =================== Anúncios (som + voz) ===================
     private class Snap(r: Round) {
         val board = r.board.size
-        val h0 = r.hands[0].size
-        val h1 = r.hands[1].size
+        val hands = IntArray(r.n) { r.hands[it].size }
         val passes = r.consecutivePasses
         val current = r.current
         val over = r.isOver
-        fun hand(p: Int) = if (p == 0) h0 else h1
+        fun hand(p: Int) = hands.getOrElse(p) { 0 }
     }
 
     private fun afterChange(before: Snap, r: Round) {
@@ -316,12 +383,14 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             sb.append("$who ${Words.tile(m.tile)}. ")
             if (!r.isOver) sb.append("Ponta esquerda ${Words.n(r.leftEnd!!)}, ponta direita ${Words.n(r.rightEnd!!)}. ")
         }
-        for (p in 0..1) if (r.hands[p].size > before.hand(p)) {
+        for (p in 0 until r.n) if (r.hands[p].size > before.hand(p)) {
             sfx.playDraw()
             if (p == me && mode != Mode.LOCAL) sb.append("Você comprou ${Words.tile(r.hands[p].last())}. ")
             else sb.append("${spokenName(p)} comprou. ")
         }
-        if (r.consecutivePasses > before.passes) sb.append("${spokenName(before.current)} passou. ")
+        if (r.consecutivePasses > before.passes) {
+            sb.append(if (before.current == me && mode != Mode.LOCAL) "Você passou. " else "${spokenName(before.current)} passou. ")
+        }
         // Comprou e continua sem pedra que encaixe: avisa de novo e leva o foco ao botão.
         val myTurnNow = !r.isOver && r.current == me && (mode != Mode.LOCAL || revealed)
         val hint = if (!turnChanged && myTurnNow) hintFor(r, me) else ""
@@ -334,11 +403,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun announceTurn(r: Round, newRound: Boolean) {
         val p = r.current
-        val text = when (mode) {
-            Mode.LOCAL -> ""
-            Mode.CPU -> if (p == 0) "Sua vez" else if (newRound) "Computador começa" else ""
-            else -> if (p == me) "Sua vez" else if (newRound) "${nameOf(p)} começa" else ""
-        }
         if (mode == Mode.LOCAL) {
             val pass = if (newRound) "${spokenName(p)} começa" else "Passe para o ${spokenName(p).lowercase()}"
             status = pass
@@ -354,20 +418,27 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             }
             return
         }
+        val text = when {
+            p == me -> "Sua vez"
+            mode == Mode.CPU -> if (newRound) "Computador começa" else ""
+            newRound -> "${nameOf(p)} começa"
+            r.n > 2 -> "Vez de ${nameOf(p)}"
+            else -> ""
+        }
         val mine = p == me
         val hint = if (mine) hintFor(r, p) else ""
         say(text + if (mine) "." else "")
         if (hint.isNotEmpty()) { status = (status + hint).trim(); focusActionAfterSpeech() }
     }
 
-    /** Partida = melhor de 5: vence quem ganhar [WINS_TO_MATCH] rodadas primeiro. */
-    val matchOver: Boolean get() = scores.any { it >= WINS_TO_MATCH }
-    val matchWinner: Int get() = scores.indexOfFirst { it >= WINS_TO_MATCH }
+    /** Partida = melhor de 5: vence o lado (jogador ou dupla) que ganhar [WINS_TO_MATCH] rodadas primeiro. */
+    val matchOver: Boolean get() = (0 until sideCount).any { scores[it] >= WINS_TO_MATCH }
+    val matchWinner: Int get() = (0 until sideCount).firstOrNull { scores[it] >= WINS_TO_MATCH } ?: -1
 
     private fun announceResult(r: Round) {
         val res = r.result!!
-        // No convidado do Bluetooth o placar já chega pronto do anfitrião.
-        if (res.winner >= 0 && mode != Mode.BT_GUEST) scores[res.winner]++
+        // Nos outros aparelhos do Bluetooth o placar já chega pronto de quem comanda.
+        if (res.winner >= 0 && isAuthority) scores[r.sideOf(res.winner)]++
         if (matchOver) recordMatch()
         if (res.winner >= 0) sfx.playApplause()
         val youWon = res.winner >= 0 && mode != Mode.LOCAL && res.winner == me
@@ -380,10 +451,17 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 else -> "${spokenName(res.winner)} $how. "
             },
         )
-        val hi = maxOf(scores[0], scores[1]); val lo = minOf(scores[0], scores[1])
+        if (res.winner >= 0 && r.n == 4) sb.append("Ponto para a ${spokenSide(r.sideOf(res.winner))}. ")
         if (matchOver) {
             val w = matchWinner
-            sb.append(if (mode != Mode.LOCAL && w == me) "Você venceu a partida por $hi a $lo! " else "${spokenName(w)} venceu a partida por $hi a $lo. ")
+            val mine = mode != Mode.LOCAL && w == r.sideOf(me)
+            sb.append(
+                when {
+                    mine && r.n == 4 -> "Sua dupla venceu a partida! "
+                    mine -> "Você venceu a partida! "
+                    else -> "${spokenSide(w).replaceFirstChar { it.uppercaseChar() }} venceu a partida. "
+                },
+            )
         }
         // Sempre termina com o placar.
         sb.append("${if (matchOver) "Placar final" else "Placar"}: ${placarText()}.")
@@ -391,12 +469,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         bump()
     }
 
+    /** Nomes dos outros jogadores (para o histórico do Bluetooth). */
+    private fun btOpponentsLabel(): String =
+        (0 until players).filter { it != me }.joinToString(" e ") { nameOf(it) }.ifBlank { "Amigo" }
+
     private fun recordMatch() {
         val w = matchWinner
         when (mode) {
             Mode.CPU -> history.recordCpu(level, won = w == 0)
             Mode.LOCAL -> history.recordLocal(w)
-            Mode.BT_HOST, Mode.BT_GUEST -> history.recordBt(friendName.ifBlank { "Amigo" }, won = w == me)
+            Mode.BT -> history.recordBt(btOpponentsLabel(), won = w == sideOf(me))
         }
     }
 
@@ -404,21 +486,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun historyText(): String = when (mode) {
         Mode.CPU -> history.cpuText()
         Mode.LOCAL -> history.localText()
-        else -> history.btText(friendName.ifBlank { null })
+        Mode.BT -> history.btText(if (seatIds.isNotEmpty()) btOpponentsLabel() else null)
     }
 
     fun speakHistory() = say(historyText(), flush = true)
 
-    /** Botão "Ouvir mesa": mesa, pontas e quantas pedras o adversário tem. */
+    /** Botão "Ouvir mesa": pontas, pedras dos outros, mesa e (depois da primeira compra) o monte. */
     fun describe() {
         val r = round ?: return
-        val opp = 1 - me
         val sb = StringBuilder()
         if (r.board.isNotEmpty()) sb.append("Ponta esquerda ${Words.n(r.leftEnd!!)}, ponta direita ${Words.n(r.rightEnd!!)}. ")
-        sb.append("${spokenName(opp)} tem ${pedras(r.hands[opp].size)}. ")
+        for (p in others()) sb.append("${spokenName(p)} tem ${pedras(r.hands[p].size)}. ")
         sb.append(if (r.board.isEmpty()) "Mesa vazia. " else "Mesa com ${pedras(r.board.size)}. ")
         // O monte só é informado depois que alguém comprar a primeira pedra.
-        if (r.boneyard.size < 14) sb.append("Monte tem ${pedras(r.boneyard.size)}.")
+        if (r.boneyard.size < 28 - 7 * r.n) sb.append("Monte tem ${pedras(r.boneyard.size)}.")
         say(sb.toString(), flush = true)
     }
 
@@ -485,6 +566,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         val s = updateState
         if (s is UpdateState.NeedPermission && updater.canInstall()) installUpdate(s.file)
     }
+
     fun dismissUpdate() { updateState = UpdateState.Idle }
 
     /** Última mensagem anunciada (mostrada na linha de status, como no modelo). */
@@ -514,9 +596,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         return sides
     }
 
-    /** "Você 2, Computador 1" (falado/mostrado no fim da rodada). */
-    fun placarText(): String = "${spokenName(0)} ${scores[0]}, ${spokenName(1)} ${scores[1]}"
-
     /**
      * true quando o foco do TalkBack deve ir para o botão Comprar pedra / Passar vez
      * (depois que a voz termina o aviso). A tela consome com [consumeBuyFocus].
@@ -530,6 +609,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private fun hintFor(r: Round, p: Int): String = when {
         r.isOver || r.board.isEmpty() || r.playable(p).isNotEmpty() -> ""
         r.boneyard.isNotEmpty() -> " Você não tem pedras que encaixam. Toque no botão comprar."
+        r.n == 4 -> " Você não tem pedras que encaixam. Toque no botão passar vez."
         else -> " Monte vazio. Toque no botão passar vez."
     }
 
@@ -543,79 +623,130 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (seconds > 0) prefs.edit().putLong("visivel_ate", System.currentTimeMillis() + seconds * 1000L - 60_000L).apply()
     }
 
-    /** A tela do Bluetooth já é uma sala: fica aguardando conexão (anfitrião). */
-    fun hostRoom() { mode = Mode.BT_HOST; link.host() }
+    /** A tela do Bluetooth já é uma sala: fica aberta, aguardando amigos. */
+    fun hostRoom() { mode = Mode.BT; link.openRoom() }
 
-    /** Desconecta do amigo e volta a deixar a sala aberta. */
+    /** Sai da sala: fecha as conexões e esquece os jogadores. */
     fun leaveRoom() {
-        if (link.state.value == LinkState.Connected) link.send(Proto.BYE)
-        link.disconnect()
-        friendName = ""; friendPhoto = null; inviteReceived = false; waitingAccept = false
+        link.closeAll()
+        session.reset()
+        seatIds = emptyList()
+        photos.keys.retainAll(setOf(myId))
+        inviteFrom = null; waitingAccept = false
+        lastRosterIds = setOf(myId)
+        roomVersion++
     }
-    fun joinMode() { mode = Mode.BT_GUEST; lobbyMessage = null }
+
+    /** Conecta no aparelho de um amigo (ele entra na sala, ou você entra na dele). */
+    fun connectTo(d: FoundDevice) {
+        mode = Mode.BT
+        lobbyMessage = null
+        link.join(d)
+    }
 
     fun invite() {
+        if (!session.canStart) return
         waitingAccept = true
-        link.send(Proto.INVITE)
-        say("Convite enviado. Aguardando ${friendName.ifBlank { "amigo" }} aceitar.", flush = true)
+        session.invite()
+        say("Convite enviado. Aguardando ${if (session.roster.size > 2) "os outros aceitarem" else "o amigo aceitar"}.", flush = true)
     }
 
     fun answerInvite(accept: Boolean) {
-        inviteReceived = false
-        link.send(if (accept) Proto.ACCEPT else Proto.DECLINE)
-        // Quem recebeu a conexão (anfitrião) comanda o jogo: se ele aceitou, já distribui.
-        if (accept && mode == Mode.BT_HOST) newMatch()
+        inviteFrom = null
+        if (accept) waitingAccept = true
+        session.answerInvite(accept)
     }
 
+    fun choosePartner(m: Member) {
+        session.choosePartner(m.id)
+        say("Você escolheu ${m.name} como parceiro.", flush = true)
+    }
+
+    /** Quem comanda a sala: manda o estado do jogo para todos. */
     private fun broadcast() {
-        if (mode != Mode.BT_HOST) return
+        if (mode != Mode.BT || !session.isRoot) return
         val r = round ?: return
-        link.send("${Proto.STATE}|${scores[0]}|${scores[1]}|${if (shuffling) 1 else 0}|${r.encode()}")
+        val sc = (0 until 4).joinToString(",") { scores[it].toString() }
+        session.broadcast("${Proto.STATE}|${if (shuffling) 1 else 0}|$sc|${seatIds.joinToString(",")}|${r.encode()}")
     }
 
-    private fun onMessage(line: String) {
-        val parts = line.split('|')
+    // ---------- Eventos da sala (BtSession.Listener) ----------
+    override fun onRoster() {
+        val ids = session.roster.map { it.id }.toSet()
+        val joined = session.roster.filter { it.id !in lastRosterIds && it.id != myId }
+        val left = lastRosterIds - ids
+        lastRosterIds = ids
+        photos.keys.retainAll(ids)
+        if (joined.isNotEmpty()) say("${joined.joinToString(" e ") { it.name }} entrou na sala.")
+        if (left.isNotEmpty()) waitingAccept = false
+        roomVersion++
+    }
+
+    override fun onPhoto(id: String, base64: String) {
+        if (id == myId) return
+        Avatar.decodeBase64(base64)?.let { photos[id] = it; roomVersion++ }
+    }
+
+    override fun onInvite(fromId: String) {
+        val name = session.nameOf(fromId)
+        inviteFrom = name
+        say("$name quer começar o jogo. Aceitar?", flush = true)
+    }
+
+    override fun onInviteDeclined(byName: String) {
+        waitingAccept = false
+        lobbyMessage = "$byName recusou o convite"
+        say("$byName recusou o convite", flush = true)
+    }
+
+    override fun onStartGame(seatIds: List<String>) {
+        this.seatIds = seatIds
+        mode = Mode.BT
+        newMatch()
+    }
+
+    override fun onRootMessage(parts: List<String>) {
+        val seat = parts.getOrNull(1)?.toIntOrNull()
         when (parts[0]) {
-            Proto.PHOTO -> friendPhoto = parts.getOrNull(1)?.let(Avatar::decodeBase64)
-            Proto.HELLO -> {
-                friendName = parts.getOrNull(1).orEmpty().ifBlank { "Amigo" }
-                say("$friendName entrou na sala")
+            Proto.PLAY -> if (seat != null) {
+                val t = Tile.byId(parts[2].toInt())
+                val sd = Side.entries[parts[3].toInt()]
+                act(seat) { it.play(seat, t, sd) }
             }
-            Proto.INVITE -> {
-                inviteReceived = true
-                say("$friendName quer começar o jogo. Aceitar?", flush = true)
-            }
-            Proto.ACCEPT -> {
+            Proto.DRAW -> if (seat != null) act(seat) { it.draw(seat) != null }
+            Proto.PASS -> if (seat != null) act(seat) { it.pass(seat) }
+            Proto.NEXT -> nextRound()
+        }
+    }
+
+    override fun onDownMessage(parts: List<String>) {
+        when (parts[0]) {
+            Proto.STATE -> onState(parts)
+            Proto.ENDGAME -> {
+                val reason = parts.getOrNull(1).orEmpty().ifBlank { "A partida terminou." }
+                round = null
+                seatIds = emptyList()
                 waitingAccept = false
-                // Se o convidado convidou e o anfitrião aceitou, o estado chega em seguida.
-                if (mode == Mode.BT_HOST) newMatch()
-            }
-            Proto.DECLINE -> {
-                waitingAccept = false
-                lobbyMessage = "$friendName recusou o convite"
-                say(lobbyMessage!!, flush = true)
-            }
-            Proto.PLAY -> if (mode == Mode.BT_HOST) {
-                val t = Tile.byId(parts[1].toInt()); val s = Side.entries[parts[2].toInt()]
-                act(1) { it.play(1, t, s) }
-            }
-            Proto.DRAW -> if (mode == Mode.BT_HOST) act(1) { it.draw(1) != null }
-            Proto.PASS -> if (mode == Mode.BT_HOST) act(1) { it.pass(1) }
-            Proto.NEXT -> if (mode == Mode.BT_HOST) nextRound()
-            Proto.STATE -> if (mode == Mode.BT_GUEST) onState(parts)
-            Proto.BYE -> {
-                lobbyMessage = "$friendName saiu do jogo"
-                say(lobbyMessage!!, flush = true)
-                link.disconnect()
-                friendName = ""; friendPhoto = null
-                if (screen == Screen.GAME) { round = null; screen = Screen.BLUETOOTH }
+                lobbyMessage = reason
+                say(reason, flush = true)
+                if (screen == Screen.GAME) screen = Screen.BLUETOOTH
+                bump()
             }
         }
     }
 
+    override fun onRejected(reason: String) {
+        lobbyMessage = reason
+        say(reason, flush = true)
+    }
+
     private fun onState(parts: List<String>) {
-        scores[0] = parts[1].toInt(); scores[1] = parts[2].toInt()
-        val shuffle = parts[3] == "1"
+        // STATE|embaralhando|placar,..|lugares,..|rodada
+        val shuffle = parts[1] == "1"
+        parts[2].split(',').forEachIndexed { i, v -> if (i < 4) scores[i] = v.toIntOrNull() ?: 0 }
+        seatIds = parts[3].split(',').filter { it.isNotEmpty() }
+        mode = Mode.BT
+        waitingAccept = false
         val newR = Round.decode(parts.subList(4, parts.size).joinToString("|"))
         val old = round
         round = newR
@@ -626,18 +757,20 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
             say("Embaralhando as pedras", flush = true)
             bump()
             viewModelScope.launch {
-                delay(1700); shuffling = false
-                announceTurn(newR, newRound = true); bump()
+                delay(1700)
+                shuffling = false
+                announceTurn(newR, newRound = true)
+                bump()
             }
             return
         }
-        if (old == null || old.board.size > newR.board.size) { shuffling = false; bump(); return }
+        if (old == null || old.n != newR.n || old.board.size > newR.board.size) { shuffling = false; bump(); return }
         afterChange(Snap(old), newR)
     }
 
     override fun onCleared() {
         cpuJob?.cancel()
-        link.disconnect()
+        link.closeAll()
         voice.shutdown()
         sfx.release()
     }

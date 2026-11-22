@@ -38,7 +38,7 @@ object Ai {
      */
     private fun hard(round: Round, m: Move): Int {
         val me = m.player
-        val opp = 1 - me
+        val opp = round.next(me) // quem joga logo depois (com 2 jogadores, o adversário)
         val hand = round.hands[me]
         if (hand.size == 1) return 10_000 // bate
         val (l, r) = endsAfter(round, m)

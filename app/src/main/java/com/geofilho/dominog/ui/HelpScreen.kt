@@ -37,8 +37,8 @@ private fun helpBlocks(version: String): List<Block> {
         t("Dominó G (versão $version)"),
         p(
             "O Dominó G é um jogo de dominó para Android, leve, feito para ser jogado tanto por quem enxerga " +
-                "quanto por quem usa leitor de tela. Dá para jogar contra o computador, em três níveis, contra um " +
-                "amigo pelo Bluetooth ou com um parceiro no mesmo aparelho. O jogo fala cada jogada e as pontas da " +
+                "quanto por quem usa leitor de tela. Dá para jogar contra o computador, em três níveis, com até 4 " +
+                "pessoas pelo Bluetooth (com 4, em duplas) ou com um parceiro no mesmo aparelho. O jogo fala cada jogada e as pontas da " +
                 "mesa, tem sons de pedra, bipes e aplausos, e guarda o histórico de partidas. Não tem propagandas e " +
                 "funciona do Android 8 em diante.",
         ),
@@ -124,15 +124,31 @@ private fun helpBlocks(version: String): List<Block> {
                 "A foto aparece para o amigo quando vocês conectam. Depois o botão vira Trocar foto, com a opção de remover.",
         ),
         p(
-            "3. Ao entrar, a sala já fica aberta, esperando o amigo. Na primeira vez, o Android pede permissão de " +
+            "3. Ao entrar, a sala já fica aberta, esperando os amigos. Na primeira vez, o Android pede permissão de " +
                 "Bluetooth e para deixar o celular visível para outros aparelhos.",
         ),
         p(
-            "4. Buscar amigo: um dos dois toca nesse botão e aparece a lista de aparelhos. Toque no aparelho do amigo. " +
-                "Os dois precisam estar com o Dominó G aberto nessa tela.",
+            "4. Buscar amigo: toque nesse botão e aparece a lista de aparelhos. Toque no aparelho do amigo. " +
+                "Todos precisam estar com o Dominó G aberto nessa tela.",
         ),
-        p("5. Conectados, aparecem a foto e o nome do amigo. Qualquer um toca em Iniciar jogo, e o outro toca em Aceitar."),
-        p("6. Desconectar: encerra a conexão e deixa a sala aberta de novo."),
+        p(
+            "5. A sala aceita até 4 jogadores. Depois de conectados, qualquer um pode tocar em Buscar mais um amigo " +
+                "e trazer outra pessoa, até completar 4. A lista da sala mostra a foto e o nome de cada um.",
+        ),
+        p(
+            "6. Com 2 jogadores, é um contra o outro. Com 3, cada um joga por si. Com 4, o jogo é em duplas: ao lado " +
+                "de cada pessoa aparece o botão Escolher fulano como meu parceiro. Quando alguém escolhe, as duas " +
+                "duplas ficam definidas e aparecem na tela.",
+        ),
+        p(
+            "7. Qualquer um toca em Iniciar jogo e os outros tocam em Aceitar. A partida começa quando todos aceitam. " +
+                "Se alguém recusar, todos voltam para a sala.",
+        ),
+        p(
+            "8. Na tela do jogo, cada outro jogador aparece com quantas pedras tem, na ordem em que jogam. " +
+                "Com 4, o seu parceiro aparece marcado como parceiro, e quem está na vez aparece em amarelo.",
+        ),
+        p("9. Desconectar: sai da sala e deixa a sua sala aberta de novo. Se alguém sair durante a partida, ela termina para todos."),
         p(
             "Para sair da sala, use o voltar do Android: o botão voltar, o gesto de voltar ou o gesto de voltar " +
                 "do TalkBack. O jogo pergunta se você quer voltar ao menu, com as opções Sim e Não.",
@@ -153,20 +169,22 @@ private fun helpBlocks(version: String): List<Block> {
 
         h("REGRAS"),
         p(
-            "- São 28 pedras: 7 para cada jogador e 14 no monte.\n" +
+            "- São 28 pedras, 7 para cada jogador. Com 2 jogadores sobram 14 no monte; com 3, sobram 7; com 4, " +
+                "não há monte.\n" +
                 "- Contra o computador e pelo Bluetooth, quem começa a primeira rodada é sorteado e pode jogar qualquer " +
                 "pedra. Nas rodadas seguintes, começa quem venceu a anterior.\n" +
-                "- Sem pedra que encaixe, compra do monte; com o monte vazio, passa a vez.\n" +
+                "- Sem pedra que encaixe, compra do monte; com o monte vazio (ou com 4 jogadores), passa a vez.\n" +
+                "- Com 4 jogadores, as duplas jogam alternadas: você, um adversário, seu parceiro, o outro adversário.\n" +
                 "- Bate quem jogar a última pedra. Se ninguém puder jogar, o jogo tranca e vence quem tiver menos pontos " +
-                "na mão. Empate no jogo trancado não conta.\n" +
-                "- A partida é melhor de 5: vence quem ganhar 3 rodadas primeiro.",
+                "na mão; com 4 jogadores, vence a dupla desse jogador. Empate no jogo trancado não conta.\n" +
+                "- A partida é melhor de 5: vence quem (ou a dupla que) ganhar 3 rodadas primeiro.",
         ),
 
         h("HISTÓRICO"),
         p(
             "O histórico de partidas fica salvo no aparelho. Para ouvir, toque no placar durante o jogo.\n" +
                 "- Contra o computador: partidas ganhas e perdidas em cada nível.\n" +
-                "- Pelo Bluetooth: partidas ganhas e perdidas contra cada amigo.\n" +
+                "- Pelo Bluetooth: partidas ganhas e perdidas contra cada amigo ou grupo de amigos.\n" +
                 "- No mesmo aparelho: quantas partidas o Jogador 1 e o Jogador 2 ganharam.",
         ),
 

@@ -81,7 +81,6 @@ fun GameScreen(vm: AppViewModel) {
     val v = vm.version
     val r = vm.round ?: return
     val me = vm.me
-    val opp = 1 - me
     var choosing by remember { mutableStateOf<Tile?>(null) }
     var showHistory by remember { mutableStateOf(false) }
     if (showHistory) {
@@ -107,7 +106,7 @@ fun GameScreen(vm: AppViewModel) {
     ) {
         // 1) Placar (tocar mostra e fala o histórico). Sem botão de sair: use o Voltar do Android.
         Text(
-            "${vm.nameOf(0)} ${vm.scores[0]}  ×  ${vm.scores[1]} ${vm.nameOf(1)}",
+            vm.placarDisplay(),
             fontWeight = FontWeight.Bold,
             fontSize = 17.sp,
             modifier = Modifier
@@ -115,7 +114,7 @@ fun GameScreen(vm: AppViewModel) {
                 .clickable(onClickLabel = "ouvir o histórico") { showHistory = true; vm.speakHistory() }
                 .padding(4.dp)
                 .semantics {
-                    contentDescription = "Placar, melhor de 5: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
+                    contentDescription = "Placar, melhor de 5: ${vm.placarText()}"
                     role = Role.Button
                 },
         )
@@ -156,25 +155,33 @@ fun GameScreen(vm: AppViewModel) {
             }
         }
 
-        // 4) Adversário  5) Monte (uma linha só)
-        val n = r.hands[opp].size
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.clearAndSetSemantics { contentDescription = "${vm.nameOf(opp)}, ${vm.pedras(n)} restantes" },
-            ) {
-                DominoTile(0, 0, vertical = true, unit = 12.dp, faceDown = true)
-                Text("  ${vm.nameOf(opp)}: ${vm.pedras(n)}", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        // 4) Os outros jogadores (na ordem em que jogam)  5) Monte
+        Column(Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+            for (p in vm.others()) {
+                val n = r.hands[p].size
+                val tag = if (vm.isPartner(p)) " (parceiro)" else ""
+                val turn = if (r.current == p && !r.isOver) ", é a vez dele" else ""
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier
+                        .padding(vertical = 2.dp)
+                        .clearAndSetSemantics { contentDescription = "${vm.nameOf(p)}$tag, ${vm.pedras(n)} restantes$turn" },
+                ) {
+                    DominoTile(0, 0, vertical = true, unit = 12.dp, faceDown = true)
+                    Text(
+                        "  ${vm.nameOf(p)}$tag: ${vm.pedras(n)}",
+                        fontSize = 15.sp, fontWeight = FontWeight.Bold,
+                        color = if (r.current == p && !r.isOver) Palette.Status else Palette.Text,
+                    )
+                }
             }
             Text(
-                "Monte: ${vm.pedras(r.boneyard.size)}", fontSize = 15.sp,
-                modifier = Modifier.clearAndSetSemantics { contentDescription = "Monte, ${vm.pedras(r.boneyard.size)}" },
+                if (r.n == 4) "Sem monte" else "Monte: ${vm.pedras(r.boneyard.size)}", fontSize = 15.sp,
+                modifier = Modifier
+                    .padding(top = 2.dp)
+                    .clearAndSetSemantics {
+                        contentDescription = if (r.n == 4) "Sem monte" else "Monte, ${vm.pedras(r.boneyard.size)}"
+                    },
             )
         }
 
@@ -361,13 +368,13 @@ private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") 
         )
         if (vm.matchOver) {
             Text(
-                "🏆 ${vm.nameOf(vm.matchWinner)} venceu a partida! ${maxOf(vm.scores[0], vm.scores[1])} a ${minOf(vm.scores[0], vm.scores[1])}",
+                "🏆 ${vm.sideName(vm.matchWinner)} venceu a partida!",
                 fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Palette.Status, textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 6.dp),
             )
         }
         Spacer(Modifier.height(8.dp))
-        for (p in 0..1) if (r.hands[p].isNotEmpty()) {
+        for (p in 0 until r.n) if (r.hands[p].isNotEmpty()) {
             val hand = r.hands[p]
             val summary = "${vm.nameOf(p)} ficou com ${vm.pedras(hand.size)}, somando ${r.handPips(p)} pontos"
             // Um elemento só para o TalkBack: quantas pedras, quantos pontos e quais são.

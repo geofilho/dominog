@@ -20,25 +20,37 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
 import java.io.OutputStream
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 sealed interface LinkState {
+    /** Sala fechada e sem conexões. */
     data object Idle : LinkState
+    /** Sala aberta, aguardando amigos, sem conexões ainda. */
     data object Hosting : LinkState
     data class Connecting(val name: String) : LinkState
+    /** Pelo menos uma conexão ativa (a sala continua aberta para mais amigos). */
     data object Connected : LinkState
-    data class Failed(val message: String) : LinkState
 }
 
 data class FoundDevice(val name: String, val address: String, val device: BluetoothDevice)
 
+/** Eventos das conexões: cada conexão tem um número próprio. */
+sealed interface LinkEvent {
+    /** Nova conexão. [accepted] = true se o amigo conectou neste aparelho. */
+    data class Opened(val id: Int, val accepted: Boolean, val peerName: String) : LinkEvent
+    data class Line(val id: Int, val text: String) : LinkEvent
+    data class Closed(val id: Int) : LinkEvent
+}
+
 /**
- * Conexão Bluetooth clássica (RFCOMM) entre dois aparelhos com o app.
- * Protocolo de texto, uma mensagem por linha (ver [Proto]).
+ * Bluetooth clássico (RFCOMM) com várias conexões ao mesmo tempo (até 4 jogadores).
+ * A sala fica aberta (aceitando conexões) e este aparelho também pode conectar em amigos.
+ * Quem comanda o jogo e como as mensagens passam entre os aparelhos é decidido em [BtSession].
  * As permissões de Bluetooth são pedidas pela tela antes de chamar estes métodos.
  */
 @SuppressLint("MissingPermission")
@@ -50,29 +62,39 @@ class BtLink(context: Context) {
 
     private val _state = MutableStateFlow<LinkState>(LinkState.Idle)
     val state: StateFlow<LinkState> = _state
-    private val _incoming = MutableSharedFlow<String>(extraBufferCapacity = 64)
-    val incoming: SharedFlow<String> = _incoming
+    private val _events = MutableSharedFlow<LinkEvent>(extraBufferCapacity = 256)
+    val events: SharedFlow<LinkEvent> = _events
+    /** Avisos para a pessoa (ex.: falha ao conectar). */
+    private val _errors = MutableSharedFlow<String>(extraBufferCapacity = 8)
+    val errors: SharedFlow<String> = _errors
     private val _found = MutableStateFlow<List<FoundDevice>>(emptyList())
     val found: StateFlow<List<FoundDevice>> = _found
     private val _scanning = MutableStateFlow(false)
     val scanning: StateFlow<Boolean> = _scanning
 
-    private var server: BluetoothServerSocket? = null
-    private var socket: BluetoothSocket? = null
-    private var out: OutputStream? = null
-    private var ioJob: Job? = null
+    private class Conn(val id: Int, val socket: BluetoothSocket, val out: OutputStream, var job: Job? = null)
+    private val conns = ConcurrentHashMap<Int, Conn>()
+    private val ids = AtomicInteger()
+    @Volatile private var server: BluetoothServerSocket? = null
+    @Volatile private var connecting: String? = null
     private var receiverRegistered = false
-    /** Muda a cada nova tentativa (sala/conexão); evita que uma tentativa antiga mexa no estado. */
-    @Volatile private var generation = 0
-    /** true = este aparelho recebeu a conexão (anfitrião); false = conectou no amigo (convidado). */
-    @Volatile var isHost = false; private set
 
     val available get() = adapter != null
+    val enabled get() = adapter?.isEnabled == true
+    val connectionCount get() = conns.size
 
     /** O celular já está visível para outros aparelhos Bluetooth? */
     val isDiscoverable: Boolean
         get() = runCatching { adapter?.scanMode == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE }.getOrDefault(false)
-    val enabled get() = adapter?.isEnabled == true
+
+    private fun refreshState() {
+        _state.value = when {
+            conns.isNotEmpty() -> LinkState.Connected
+            connecting != null -> LinkState.Connecting(connecting!!)
+            server != null -> LinkState.Hosting
+            else -> LinkState.Idle
+        }
+    }
 
     // ---------------- Descoberta ----------------
     private val receiver = object : BroadcastReceiver() {
@@ -118,113 +140,103 @@ class BtLink(context: Context) {
         if (receiverRegistered) { runCatching { app.unregisterReceiver(receiver) }; receiverRegistered = false }
     }
 
-    // ---------------- Conexão ----------------
-    /** Cria a sala: fica aguardando o amigo conectar. */
-    fun host() {
-        val a = adapter ?: return fail("Bluetooth indisponível")
-        closeSockets()
-        val gen = ++generation
-        _state.value = LinkState.Hosting
+    // ---------------- Sala (aceita várias conexões) ----------------
+    /** Abre a sala: fica aceitando amigos até [closeAll]. */
+    fun openRoom() {
+        val a = adapter ?: return
+        if (server != null) return
+        val srv = try {
+            a.listenUsingRfcommWithServiceRecord(SERVICE_NAME, APP_UUID)
+        } catch (e: Exception) {
+            _errors.tryEmit("Não foi possível abrir a sala. Confira se o Bluetooth está ligado.")
+            return
+        }
+        server = srv
+        refreshState()
         scope.launch {
-            try {
-                val srv = a.listenUsingRfcommWithServiceRecord(SERVICE_NAME, APP_UUID)
-                if (gen != generation) { runCatching { srv.close() }; return@launch }
-                server = srv
-                val s = srv.accept()
-                runCatching { srv.close() }
-                server = null
-                if (gen != generation) { runCatching { s.close() }; return@launch }
-                attach(s, host = true)
-            } catch (e: Exception) {
-                // Sala fechada de propósito (ex.: foi conectar no amigo) não é erro.
-                if (gen == generation) fail("Sala encerrada")
+            while (server === srv) {
+                val s = try { srv.accept() } catch (e: Exception) { null } ?: break
+                attach(s, accepted = true)
             }
+            if (server === srv) server = null
+            refreshState()
         }
     }
 
-    /** Entra na sala de um amigo encontrado na busca. */
+    /** Conecta no aparelho de um amigo encontrado na busca. */
     fun join(dev: FoundDevice) {
         stopScan()
-        val gen = ++generation
-        closeSockets()
-        _state.value = LinkState.Connecting(dev.name)
+        if (connecting != null) return
+        connecting = dev.name
+        refreshState()
         scope.launch {
             try {
                 val s = dev.device.createRfcommSocketToServiceRecord(APP_UUID)
                 s.connect()
-                if (gen != generation) { runCatching { s.close() }; return@launch }
-                attach(s, host = false)
+                connecting = null
+                attach(s, accepted = false)
             } catch (e: Exception) {
-                if (gen == generation) fail("Não foi possível conectar a ${dev.name}. Confirme que ele está na tela do Bluetooth.")
+                connecting = null
+                refreshState()
+                _errors.tryEmit("Não foi possível conectar a ${dev.name}. Confirme que ele está na tela do Bluetooth.")
             }
         }
     }
 
-    private fun attach(s: BluetoothSocket, host: Boolean) {
-        isHost = host
-        socket = s
-        out = s.outputStream
-        _state.value = LinkState.Connected
-        ioJob = scope.launch {
+    private fun attach(s: BluetoothSocket, accepted: Boolean) {
+        val id = ids.incrementAndGet()
+        val c = Conn(id, s, s.outputStream)
+        conns[id] = c
+        refreshState()
+        val peer = runCatching { s.remoteDevice.name }.getOrNull() ?: "Amigo"
+        _events.tryEmit(LinkEvent.Opened(id, accepted, peer))
+        c.job = scope.launch {
             try {
                 BufferedReader(InputStreamReader(s.inputStream, Charsets.UTF_8)).use { r ->
                     while (true) {
                         val line = r.readLine() ?: break
-                        _incoming.emit(line)
+                        _events.emit(LinkEvent.Line(id, line))
                     }
                 }
             } catch (_: Exception) { }
-            if (socket === s) fail("Conexão perdida")
+            if (conns.remove(id) != null) {
+                runCatching { s.close() }
+                refreshState()
+                _events.emit(LinkEvent.Closed(id))
+            }
         }
     }
 
-    fun send(line: String) {
-        val o = out ?: return
+    fun send(id: Int, line: String) {
+        val c = conns[id] ?: return
         scope.launch {
             try {
-                withContext(Dispatchers.IO) {
-                    synchronized(o) { o.write((line + "\n").toByteArray(Charsets.UTF_8)); o.flush() }
-                }
-            } catch (_: Exception) { fail("Conexão perdida") }
+                synchronized(c.out) { c.out.write((line + "\n").toByteArray(Charsets.UTF_8)); c.out.flush() }
+            } catch (_: Exception) { close(id) }
         }
     }
 
-    private fun fail(msg: String) {
-        closeSockets()
-        _state.value = LinkState.Failed(msg)
+    /** Fecha uma conexão (o outro lado percebe e o evento Closed é emitido). */
+    fun close(id: Int) {
+        val c = conns.remove(id) ?: return
+        c.job?.cancel()
+        runCatching { c.socket.close() }
+        refreshState()
+        _events.tryEmit(LinkEvent.Closed(id))
     }
 
-    private fun closeSockets() {
-        ioJob?.cancel(); ioJob = null
-        runCatching { server?.close() }; server = null
-        val s = socket; socket = null; out = null
-        runCatching { s?.close() }
-    }
-
-    fun disconnect() {
-        generation++
+    /** Fecha a sala e todas as conexões. */
+    fun closeAll() {
         stopScan()
-        closeSockets()
-        _state.value = LinkState.Idle
+        val srv = server; server = null
+        runCatching { srv?.close() }
+        conns.keys.toList().forEach(::close)
+        connecting = null
+        refreshState()
     }
 
     companion object {
         const val SERVICE_NAME = "DominogSala"
         val APP_UUID: UUID = UUID.fromString("6f1c2a3e-8d4b-4e0a-9b7a-3d0c5e7f9a21")
     }
-}
-
-/** Mensagens trocadas entre os aparelhos. */
-object Proto {
-    const val HELLO = "HELLO"   // HELLO|nome
-    const val PHOTO = "PHOTO"   // PHOTO|jpeg em base64 (foto do jogador)
-    const val INVITE = "INVITE" // anfitrião convida para começar
-    const val ACCEPT = "ACCEPT"
-    const val DECLINE = "DECLINE"
-    const val STATE = "STATE"   // STATE|placar0|placar1|rodada codificada  (anfitrião → convidado)
-    const val PLAY = "PLAY"     // PLAY|idPedra|lado  (convidado → anfitrião)
-    const val DRAW = "DRAW"
-    const val PASS = "PASS"
-    const val NEXT = "NEXT"     // pedir nova rodada
-    const val BYE = "BYE"
 }

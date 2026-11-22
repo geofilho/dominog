@@ -152,48 +152,55 @@ fun BluetoothScreen(vm: AppViewModel) {
             Column {
                 Text("Seu nome: ${vm.playerName}", fontSize = 20.sp)
                 Row {
-                    TextButton(onClick = { editingName = true }, enabled = state !is LinkState.Connected) { Text("Alterar nome") }
+                    TextButton(onClick = { editingName = true }, enabled = vm.session.roster.size <= 1) { Text("Alterar nome") }
                     TextButton(onClick = { choosePhoto = true }) { Text(if (vm.myPhoto == null) "Inserir foto" else "Trocar foto") }
                 }
             }
         }
         Spacer(Modifier.height(12.dp))
 
-        when (val st = state) {
-            LinkState.Connected -> Lobby(vm)
-            is LinkState.Connecting -> {
-                CircularProgressIndicator()
-                Text("Conectando a ${st.name}…", modifier = Modifier.padding(16.dp))
-            }
-            else -> {
-                // A tela já é uma sala: este aparelho fica esperando o amigo enquanto procura.
+        @Suppress("UNUSED_VARIABLE") val rv = vm.roomVersion // redesenha quando a sala muda
+        val roster = vm.session.roster
+        if (roster.size > 1) Lobby(vm)
+        else Text(
+            if (state == LinkState.Idle) "Abrindo a sala…" else "Sala aberta. Aguardando amigos…",
+            textAlign = TextAlign.Center, modifier = Modifier.padding(bottom = 8.dp),
+        )
+
+        (state as? LinkState.Connecting)?.let { st ->
+            CircularProgressIndicator(Modifier.padding(top = 8.dp))
+            Text("Conectando a ${st.name}…", modifier = Modifier.padding(8.dp))
+        }
+
+        // Até 4 jogadores: dá para buscar mais amigos enquanto a partida não começou.
+        if (roster.size < 4 && !vm.session.inGame) {
+            MenuButton(
+                when {
+                    scanning -> "Buscando…"
+                    roster.size > 1 -> "Buscar mais um amigo"
+                    else -> "Buscar amigo"
+                },
+                Palette.Start,
+            ) { withBluetooth { link.startScan() } }
+            if (found.isNotEmpty() || scanning) {
                 Text(
-                    if (st == LinkState.Hosting) "Sala aberta. Aguardando seu amigo…" else "Abrindo a sala…",
-                    textAlign = TextAlign.Center, modifier = Modifier.padding(bottom = 8.dp),
+                    "Toque no aparelho do seu amigo:", fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
                 )
-                MenuButton(if (scanning) "Buscando…" else "Buscar amigo", Palette.Start) {
-                    withBluetooth { link.startScan() }
-                }
-                if (found.isNotEmpty() || scanning) {
-                    Text(
-                        "Toque no aparelho do seu amigo:", fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(top = 16.dp, bottom = 6.dp),
-                    )
-                }
-                found.forEach { d ->
-                    Text(
-                        d.name,
-                        fontSize = 19.sp,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 56.dp)
-                            .padding(vertical = 4.dp)
-                            .background(Palette.AreaBorder, RoundedCornerShape(8.dp))
-                            .semantics { role = Role.Button }
-                            .clickable { vm.joinMode(); link.join(d) }
-                            .padding(16.dp),
-                    )
-                }
+            }
+            found.forEach { d ->
+                Text(
+                    d.name,
+                    fontSize = 19.sp,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 56.dp)
+                        .padding(vertical = 4.dp)
+                        .background(Palette.AreaBorder, RoundedCornerShape(8.dp))
+                        .semantics { role = Role.Button }
+                        .clickable { vm.connectTo(d) }
+                        .padding(16.dp),
+                )
             }
         }
     }
@@ -201,8 +208,7 @@ fun BluetoothScreen(vm: AppViewModel) {
     // Abre a sala automaticamente (e reabre após uma conexão falhar ou terminar).
     LaunchedEffect(state, editingName) {
         if (editingName) return@LaunchedEffect
-        if (state == LinkState.Idle || state is LinkState.Failed) {
-            if (state is LinkState.Failed) kotlinx.coroutines.delay(1500)
+        if (state == LinkState.Idle) {
             withBluetooth {
                 vm.hostRoom()
                 // Só pede para ficar visível se ainda não estiver (vale por 1 hora).
@@ -242,11 +248,11 @@ fun BluetoothScreen(vm: AppViewModel) {
         )
     }
 
-    if (vm.inviteReceived) {
+    vm.inviteFrom?.let { from ->
         AlertDialog(
             onDismissRequest = {},
             title = { Text("Convite") },
-            text = { Text("${vm.friendName} quer começar o jogo.") },
+            text = { Text("$from quer começar o jogo.") },
             confirmButton = { TextButton(onClick = { vm.answerInvite(true) }) { Text("Aceitar") } },
             dismissButton = { TextButton(onClick = { vm.answerInvite(false) }) { Text("Recusar") } },
         )
@@ -272,22 +278,64 @@ private fun NameEditor(initial: String, onSave: (String) -> Unit) {
     MenuButton("Salvar", Palette.Start) { if (name.isNotBlank()) onSave(name) }
 }
 
+/** Sala com amigos: lista de jogadores (com fotos), escolha de parceiro (4 jogadores) e Iniciar jogo. */
 @Composable
 private fun Lobby(vm: AppViewModel) {
-    val friend = vm.friendName.ifBlank { "amigo" }
-    PlayerPhoto(vm.friendPhoto, "Foto de $friend", 96.dp)
+    val session = vm.session
+    val roster = session.roster
+    val partners = session.partners
     Text(
-        "Conectado com $friend", fontSize = 22.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center,
-        modifier = Modifier.padding(top = 8.dp),
+        "Na sala: ${roster.size} jogadores", fontSize = 22.sp, fontWeight = FontWeight.Bold,
+        modifier = Modifier.padding(bottom = 8.dp).semantics { heading() },
     )
-    Spacer(Modifier.height(16.dp))
+    roster.forEach { m ->
+        val you = vm.isMe(m)
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 4.dp)
+                .semantics(mergeDescendants = true) { },
+        ) {
+            PlayerPhoto(vm.photos[m.id], "Foto de ${m.name}", 48.dp)
+            Text(if (you) "${m.name} (você)" else m.name, fontSize = 19.sp, modifier = Modifier.weight(1f))
+        }
+        // Com 4 jogadores e sem duplas ainda: cada um escolhe o parceiro.
+        if (roster.size == 4 && partners == null && !you) {
+            MenuButton("Escolher ${m.name} como meu parceiro", Palette.Action) { vm.choosePartner(m) }
+        }
+    }
+    when {
+        roster.size == 4 && partners != null -> {
+            val names = roster.associate { it.id to it.name }
+            val team1 = listOf(partners.first, partners.second)
+            val team2 = roster.map { it.id }.filter { it !in team1 }
+            Text(
+                "Dupla 1: ${team1.joinToString(" e ") { names[it].orEmpty() }}\nDupla 2: ${team2.joinToString(" e ") { names[it].orEmpty() }}",
+                fontSize = 18.sp, textAlign = TextAlign.Center, color = Palette.Status,
+                modifier = Modifier.padding(vertical = 10.dp),
+            )
+        }
+        roster.size == 4 -> Text(
+            "Com 4 jogadores o jogo é em duplas. Escolham os parceiros para começar.",
+            textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp),
+        )
+        roster.size == 3 -> Text(
+            "Com 3 jogadores, cada um joga por si.",
+            textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 8.dp),
+        )
+    }
     if (vm.waitingAccept) {
-        CircularProgressIndicator()
-        Text("Aguardando $friend aceitar…", modifier = Modifier.padding(12.dp))
-    } else {
+        CircularProgressIndicator(Modifier.padding(top = 8.dp))
+        Text(
+            if (roster.size > 2) "Aguardando os outros aceitarem…" else "Aguardando o amigo aceitar…",
+            modifier = Modifier.padding(12.dp),
+        )
+    } else if (session.canStart) {
         MenuButton("Iniciar jogo", Palette.Start) { vm.invite() }
     }
-    OutlinedButton(onClick = { vm.leaveRoom() }, modifier = Modifier.padding(top = 20.dp)) { Text("Desconectar") }
+    OutlinedButton(onClick = { vm.leaveRoom() }, modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)) { Text("Desconectar") }
 }
 
 /** Foto redonda do jogador (ou um círculo com ícone de pessoa, se não tiver foto). */
