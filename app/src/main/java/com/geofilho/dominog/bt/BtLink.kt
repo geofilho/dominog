@@ -68,6 +68,10 @@ class BtLink(context: Context) {
     @Volatile var isHost = false; private set
 
     val available get() = adapter != null
+
+    /** O celular já está visível para outros aparelhos Bluetooth? */
+    val isDiscoverable: Boolean
+        get() = runCatching { adapter?.scanMode == BluetoothAdapter.SCAN_MODE_CONNECTABLE_DISCOVERABLE }.getOrDefault(false)
     val enabled get() = adapter?.isEnabled == true
 
     // ---------------- Descoberta ----------------

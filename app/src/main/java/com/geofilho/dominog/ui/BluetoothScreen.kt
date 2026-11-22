@@ -94,7 +94,10 @@ fun BluetoothScreen(vm: AppViewModel) {
 
     fun hasPerms() = BT_PERMISSIONS.all { ContextCompat.checkSelfPermission(ctx, it) == PackageManager.PERMISSION_GRANTED }
 
-    val discoverable = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+    // O Android devolve como resultado os segundos de visibilidade aceitos (ou "cancelado").
+    val discoverable = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        vm.discoverableResult(it.resultCode)
+    }
     val enableBt = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         if (link.enabled) pendingAction?.invoke() else vm.lobbyMessage = "Ative o Bluetooth para jogar."
         pendingAction = null
@@ -206,11 +209,12 @@ fun BluetoothScreen(vm: AppViewModel) {
             if (state is LinkState.Failed) kotlinx.coroutines.delay(1500)
             withBluetooth {
                 vm.hostRoom()
-                if (!discoverableAsked) {
+                // Só pede para ficar visível se ainda não estiver (vale por 1 hora).
+                if (!discoverableAsked && vm.needsDiscoverable()) {
                     discoverableAsked = true
                     discoverable.launch(
                         Intent(BluetoothAdapter.ACTION_REQUEST_DISCOVERABLE)
-                            .putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 300),
+                            .putExtra(BluetoothAdapter.EXTRA_DISCOVERABLE_DURATION, 3600),
                     )
                 }
             }

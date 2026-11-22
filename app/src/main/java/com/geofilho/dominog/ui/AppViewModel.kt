@@ -511,6 +511,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     // =================== Bluetooth ===================
+    /** Precisa pedir ao Android para deixar o celular visível? (não pede de novo enquanto ainda vale) */
+    fun needsDiscoverable(): Boolean =
+        !link.isDiscoverable && System.currentTimeMillis() > prefs.getLong("visivel_ate", 0L)
+
+    /** Resultado do pedido de visibilidade: [seconds] > 0 quando a pessoa aceitou. */
+    fun discoverableResult(seconds: Int) {
+        if (seconds > 0) prefs.edit().putLong("visivel_ate", System.currentTimeMillis() + seconds * 1000L - 60_000L).apply()
+    }
+
     /** A tela do Bluetooth já é uma sala: fica aguardando conexão (anfitrião). */
     fun hostRoom() { mode = Mode.BT_HOST; link.host() }
 
