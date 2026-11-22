@@ -42,6 +42,7 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon testDebugUnitTest assembleRelease
           cp app/build/outputs/apk/release/app-release.apk DominoG.apk
+          echo "$GITHUB_RUN_NUMBER" > version.txt
       - uses: actions/upload-artifact@v4
         with:
           name: DominoG-apk
@@ -55,4 +56,6 @@ jobs:
           make_latest: false
           target_commitish: ${{ github.sha }}
           body: "APK gerado automaticamente do commit ${{ github.sha }}. Baixe DominoG.apk e instale no celular."
-          files: DominoG.apk
+          files: |
+            DominoG.apk
+            version.txt

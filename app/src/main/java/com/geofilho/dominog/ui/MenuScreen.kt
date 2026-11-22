@@ -21,6 +21,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import com.geofilho.dominog.game.Level
+import com.geofilho.dominog.update.UpdateState
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Text
@@ -76,6 +77,8 @@ fun MenuScreen(vm: AppViewModel) {
         MenuButton("Jogar pelo Bluetooth", Palette.Action) { vm.openBluetooth() }
         MenuButton("Jogar com um parceiro no mesmo aparelho", Palette.Action) { vm.startLocal() }
         MenuButton("Como usar", Palette.AreaBorder) { vm.openHelp() }
+        MenuButton("Atualizar", Palette.AreaBorder) { vm.checkUpdate() }
+        UpdateDialog(vm)
     }
 }
 
@@ -91,4 +94,43 @@ fun MenuButton(label: String, color: Color = Palette.Action, onClick: () -> Unit
             .padding(vertical = 8.dp)
             .heightIn(min = 64.dp),
     ) { Text(label, fontSize = 19.sp, fontWeight = FontWeight.SemiBold) }
+}
+
+@Composable
+private fun UpdateDialog(vm: AppViewModel) {
+    val st = vm.updateState
+    if (st == UpdateState.Idle) return
+    val dismiss = { vm.dismissUpdate() }
+    val (msg, action) = when (st) {
+        UpdateState.Checking -> "Verificando atualização…" to null
+        UpdateState.UpToDate -> "Você já tem a versão mais recente." to null
+        is UpdateState.Available -> "Nova versão disponível (1.0.${st.version}). Deseja baixar e instalar?" to
+            ("Baixar e instalar" to { vm.downloadUpdate() })
+        is UpdateState.Downloading -> "Baixando… ${st.percent}%" to null
+        is UpdateState.NeedPermission ->
+            "Para instalar, permita que o Dominó G instale aplicativos. Toque em Permitir, ative a opção, volte e toque em Instalar." to
+                ("Instalar" to { vm.installUpdate(st.file) })
+        is UpdateState.Failed -> st.message to null
+        UpdateState.Idle -> return
+    }
+    AlertDialog(
+        onDismissRequest = { if (st !is UpdateState.Downloading) dismiss() },
+        title = { Text("Atualizar") },
+        text = {
+            Column {
+                Text(msg, fontSize = 17.sp)
+                if (st is UpdateState.NeedPermission) {
+                    TextButton(onClick = { vm.openInstallPermission() }) { Text("Permitir") }
+                }
+            }
+        },
+        confirmButton = {
+            if (action != null) TextButton(onClick = action.second) { Text(action.first) }
+        },
+        dismissButton = {
+            if (st !is UpdateState.Downloading && st !is UpdateState.Checking) {
+                TextButton(onClick = dismiss) { Text(if (action != null) "Cancelar" else "Fechar") }
+            }
+        },
+    )
 }

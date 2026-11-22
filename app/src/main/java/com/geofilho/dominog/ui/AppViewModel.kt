@@ -20,6 +20,8 @@ import com.geofilho.dominog.game.Side
 import com.geofilho.dominog.game.Tile
 import com.geofilho.dominog.game.Words
 import com.geofilho.dominog.speech.Voice
+import com.geofilho.dominog.update.UpdateState
+import com.geofilho.dominog.update.Updater
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -34,6 +36,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     private val prefs = app.getSharedPreferences("dominog", Context.MODE_PRIVATE)
     val voice = Voice(app)
     val history = History(prefs)
+    val updater = Updater(app)
+    var updateState by mutableStateOf<UpdateState>(UpdateState.Idle); private set
     val sfx = SoundFx()
     val link = BtLink(app)
 
@@ -385,6 +389,57 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun pedras(n: Int) = if (n == 1) "1 pedra" else "$n pedras"
 
     private fun bump() { version++ }
+
+    // =================== Atualização ===================
+    fun checkUpdate() {
+        updateState = UpdateState.Checking
+        say("Verificando atualização", flush = true)
+        viewModelScope.launch {
+            val latest = updater.latestVersion()
+            updateState = when {
+                latest == null -> UpdateState.Failed("Não foi possível verificar. Confira a internet e tente de novo.")
+                latest > updater.installedVersion -> UpdateState.Available(latest)
+                else -> UpdateState.UpToDate
+            }
+            say(
+                when (val s = updateState) {
+                    is UpdateState.Available -> "Nova versão disponível. Deseja baixar e instalar?"
+                    UpdateState.UpToDate -> "Você já tem a versão mais recente."
+                    is UpdateState.Failed -> s.message
+                    else -> ""
+                },
+                flush = true,
+            )
+        }
+    }
+
+    fun downloadUpdate() {
+        updateState = UpdateState.Downloading(0)
+        say("Baixando atualização", flush = true)
+        viewModelScope.launch {
+            try {
+                val file = updater.download { updateState = UpdateState.Downloading(it) }
+                installUpdate(file)
+            } catch (e: Exception) {
+                updateState = UpdateState.Failed("Falha ao baixar. Confira a internet e tente de novo.")
+                say((updateState as UpdateState.Failed).message, flush = true)
+            }
+        }
+    }
+
+    fun installUpdate(file: java.io.File) {
+        if (!updater.canInstall()) {
+            updateState = UpdateState.NeedPermission(file)
+            say("Para instalar, permita que o Dominó G instale aplicativos. Depois volte e toque em Instalar.", flush = true)
+            return
+        }
+        updateState = UpdateState.Idle
+        say("Abrindo o instalador", flush = true)
+        updater.install(file)
+    }
+
+    fun openInstallPermission() = updater.openInstallPermissionSettings()
+    fun dismissUpdate() { updateState = UpdateState.Idle }
 
     /** Última mensagem anunciada (mostrada na linha de status, como no modelo). */
     var status by mutableStateOf(""); private set
