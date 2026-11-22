@@ -25,6 +25,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 enum class Screen { MENU, BLUETOOTH, GAME, HELP }
+
+/** Rodadas vencidas para ganhar a partida (melhor de 5). */
+const val WINS_TO_MATCH = 3
 enum class Mode { CPU, LOCAL, BT_HOST, BT_GUEST }
 
 class AppViewModel(app: Application) : AndroidViewModel(app) {
@@ -156,8 +159,9 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     fun nextRound() {
         val r = round ?: return
         if (!r.isOver) return
-        when (mode) {
-            Mode.BT_GUEST -> link.send(Proto.NEXT)
+        when {
+            mode == Mode.BT_GUEST -> link.send(Proto.NEXT)
+            matchOver -> newMatch() // fim da melhor de 5: começa outra partida
             else -> {
                 val res = r.result!!
                 val starter = if (res.winner >= 0) res.winner else 1 - r.current
@@ -282,18 +286,33 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         } else say(text + if (mine) "." + hintFor(r, p) else "")
     }
 
+    /** Partida = melhor de 5: vence quem ganhar [WINS_TO_MATCH] rodadas primeiro. */
+    val matchOver: Boolean get() = scores.any { it >= WINS_TO_MATCH }
+    val matchWinner: Int get() = scores.indexOfFirst { it >= WINS_TO_MATCH }
+
     private fun announceResult(r: Round) {
         val res = r.result!!
-        if (res.winner >= 0 && (mode != Mode.BT_GUEST)) scores[res.winner] += res.points
+        // No convidado do Bluetooth o placar já chega pronto do anfitrião.
+        if (res.winner >= 0 && mode != Mode.BT_GUEST) scores[res.winner]++
         if (res.winner >= 0) sfx.playApplause()
+        val youWon = res.winner >= 0 && mode != Mode.LOCAL && res.winner == me
         val how = if (res.reason == EndReason.BATIDA) "bateu" else "venceu no jogo trancado"
-        val text = when {
-            res.winner < 0 -> "Jogo trancado. Empate."
-            mode == Mode.CPU && res.winner == 0 -> "Você $how! Ganhou ${res.points} pontos."
-            mode != Mode.LOCAL && res.winner == me -> "Você $how! Ganhou ${res.points} pontos."
-            else -> "${spokenName(res.winner)} $how. ${res.points} pontos."
+        val sb = StringBuilder()
+        sb.append(
+            when {
+                res.winner < 0 -> "Jogo trancado. Empate, a rodada não conta. "
+                youWon -> "Você $how! "
+                else -> "${spokenName(res.winner)} $how. "
+            },
+        )
+        val hi = maxOf(scores[0], scores[1]); val lo = minOf(scores[0], scores[1])
+        if (matchOver) {
+            val w = matchWinner
+            sb.append(if (mode != Mode.LOCAL && w == me) "Você venceu a partida por $hi a $lo!" else "${spokenName(w)} venceu a partida por $hi a $lo.")
+        } else {
+            sb.append("Placar: ${spokenName(0)} ${scores[0]}, ${spokenName(1)} ${scores[1]}.")
         }
-        say(text)
+        say(sb.toString())
         bump()
     }
 

@@ -95,7 +95,7 @@ fun GameScreen(vm: AppViewModel) {
                 fontWeight = FontWeight.Bold,
                 fontSize = 17.sp,
                 modifier = Modifier.semantics {
-                    contentDescription = "Placar: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
+                    contentDescription = "Placar, melhor de 5: ${vm.nameOf(0)} ${vm.scores[0]}, ${vm.nameOf(1)} ${vm.scores[1]}"
                 },
             )
             Spacer(Modifier.weight(1f))
@@ -305,12 +305,19 @@ private fun Curtain(vm: AppViewModel, @Suppress("UNUSED_PARAMETER") version: Int
 private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") version: Int) {
     val res = r.result ?: return
     val title = when {
-        res.winner < 0 -> "Jogo trancado — empate"
-        res.reason == EndReason.BATIDA -> "${vm.nameOf(res.winner)} bateu! +${res.points}"
-        else -> "Trancado: ${vm.nameOf(res.winner)} venceu! +${res.points}"
+        res.winner < 0 -> "Jogo trancado — empate (não conta)"
+        res.reason == EndReason.BATIDA -> "${vm.nameOf(res.winner)} bateu!"
+        else -> "Trancado: ${vm.nameOf(res.winner)} venceu a rodada!"
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Text(title, fontSize = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        if (vm.matchOver) {
+            Text(
+                "🏆 ${vm.nameOf(vm.matchWinner)} venceu a partida! ${maxOf(vm.scores[0], vm.scores[1])} a ${minOf(vm.scores[0], vm.scores[1])}",
+                fontSize = 22.sp, fontWeight = FontWeight.Bold, color = Palette.Status, textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
         Spacer(Modifier.height(8.dp))
         for (p in 0..1) if (r.hands[p].isNotEmpty()) {
             Text("${vm.nameOf(p)} ficou com:", fontSize = 14.sp)
@@ -323,7 +330,7 @@ private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") 
             colors = ButtonDefaults.buttonColors(containerColor = Palette.Start, contentColor = Color.White),
             shape = RoundedCornerShape(50),
             modifier = Modifier.padding(top = 10.dp).heightIn(min = 60.dp),
-        ) { Text("Próxima rodada", fontSize = 20.sp) }
+        ) { Text(if (vm.matchOver) "Nova partida" else "Próxima rodada", fontSize = 20.sp) }
     }
 }
 

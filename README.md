@@ -12,7 +12,7 @@ Jogo de dominó nativo (Kotlin + Jetpack Compose), para quem enxerga e adaptado 
 
 ## Regras (2 jogadores)
 28 pedras (duplo-seis), 7 para cada, 14 no monte. Na primeira rodada quem começa é sorteado; depois começa quem venceu.
-Sem jogada: compra do monte; monte vazio: passa. Bate quem zerar a mão (ganha os pontos da mão do outro).
+Sem jogada: compra do monte; monte vazio: passa. Bate quem zerar a mão. Partida: melhor de 5 (vence quem ganhar 3 rodadas).
 Jogo trancado: vence quem tiver menos pontos.
 
 ## Estrutura
