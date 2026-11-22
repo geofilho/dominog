@@ -355,9 +355,19 @@ private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") 
         }
         Spacer(Modifier.height(8.dp))
         for (p in 0..1) if (r.hands[p].isNotEmpty()) {
-            Text("${vm.nameOf(p)} ficou com:", fontSize = 14.sp)
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(4.dp)) {
-                r.hands[p].forEach { DominoTile(it.b, it.a, vertical = true, unit = 20.dp) }
+            val hand = r.hands[p]
+            val summary = "${vm.nameOf(p)} ficou com ${vm.pedras(hand.size)}, somando ${r.handPips(p)} pontos"
+            // Um elemento só para o TalkBack: quantas pedras, quantos pontos e quais são.
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                modifier = Modifier.clearAndSetSemantics {
+                    contentDescription = summary + ": " + hand.joinToString(", ") { Words.tile(it) }
+                },
+            ) {
+                Text("$summary:", fontSize = 15.sp, textAlign = TextAlign.Center)
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.padding(4.dp)) {
+                    hand.forEach { DominoTile(it.b, it.a, vertical = true, unit = 20.dp) }
+                }
             }
         }
         Button(
