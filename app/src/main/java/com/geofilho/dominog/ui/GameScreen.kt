@@ -238,6 +238,12 @@ private fun DrawDialog(vm: AppViewModel, r: Round, me: Int) {
                 .padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            // Primeiro elemento da janela e com o foco pedido ao abrir: o TalkBack já começa nele.
+            val focus = remember { FocusRequester() }
+            LaunchedEffect(Unit) {
+                kotlinx.coroutines.delay(150)
+                runCatching { focus.requestFocus() }
+            }
             Button(
                 onClick = { if (buy) vm.draw() else vm.pass() },
                 colors = ButtonDefaults.buttonColors(containerColor = Palette.Start, contentColor = Color.White),
@@ -245,6 +251,7 @@ private fun DrawDialog(vm: AppViewModel, r: Round, me: Int) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = 64.dp)
+                    .focusRequester(focus)
                     .semantics { contentDescription = "$label. $info" },
             ) { Text(label, fontSize = 22.sp, fontWeight = FontWeight.Bold) }
             Text(info, fontSize = 16.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(vertical = 12.dp))
