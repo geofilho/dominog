@@ -151,7 +151,7 @@ fun GameScreen(vm: AppViewModel) {
                 contentAlignment = Alignment.Center,
             ) {
                 if (vm.shuffling) ShuffleAnimation()
-                else Board(r, v)
+                else Board(r, v, autoScroll = !screenReader)
             }
         }
 
@@ -278,11 +278,13 @@ private fun Modifier.dashedBorder(): Modifier = drawBehind {
 }
 
 @Composable
-private fun Board(r: Round, @Suppress("UNUSED_PARAMETER") version: Int) {
+private fun Board(r: Round, @Suppress("UNUSED_PARAMETER") version: Int, autoScroll: Boolean) {
     if (r.board.isEmpty()) return
     val scroll = rememberScrollState()
-    // Mantém visível a ponta onde a última pedra foi jogada.
+    // Mantém visível a ponta onde a última pedra foi jogada. Com leitor de tela não rola sozinho:
+    // o movimento fazia o TalkBack tirar o foco das suas pedras e levar para a mesa.
     LaunchedEffect(r.board.size) {
+        if (!autoScroll) return@LaunchedEffect
         if (r.lastMove?.side == Side.LEFT) scroll.animateScrollTo(0) else scroll.animateScrollTo(scroll.maxValue)
     }
     Row(
@@ -294,12 +296,15 @@ private fun Board(r: Round, @Suppress("UNUSED_PARAMETER") version: Int) {
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         r.board.forEach { p ->
-            DominoTile(
-                p.left, p.right, vertical = p.tile.isDouble, unit = 30.dp,
-                modifier = Modifier.clearAndSetSemantics {
-                    contentDescription = if (p.tile.isDouble) Words.tile(p.tile) else "${Words.n(p.left)} e ${Words.n(p.right)}"
-                },
-            )
+            // Identidade fixa por pedra: ao entrar uma pedra na ponta esquerda, as outras não "mudam de lugar".
+            androidx.compose.runtime.key(p.tile.id) {
+                DominoTile(
+                    p.left, p.right, vertical = p.tile.isDouble, unit = 30.dp,
+                    modifier = Modifier.clearAndSetSemantics {
+                        contentDescription = if (p.tile.isDouble) Words.tile(p.tile) else "${Words.n(p.left)} e ${Words.n(p.right)}"
+                    },
+                )
+            }
         }
     }
 }
@@ -313,15 +318,18 @@ private fun Hand(vm: AppViewModel, r: Round, me: Int, @Suppress("UNUSED_PARAMETE
         modifier = Modifier.fillMaxWidth(),
     ) {
         r.hands[me].forEach { t ->
-            DominoTile(
-                t.b, t.a, vertical = true, unit = 34.dp,
-                modifier = Modifier
-                    .semantics {
-                        contentDescription = "Pedra ${Words.tile(t)}"
-                        role = Role.Button
-                    }
-                    .clickable { if (vm.tapTile(t).size > 1) onChoose(t) },
-            )
+            // Identidade fixa por pedra: ao jogar uma pedra, as outras continuam sendo os mesmos itens para o TalkBack.
+            androidx.compose.runtime.key(t.id) {
+                DominoTile(
+                    t.b, t.a, vertical = true, unit = 34.dp,
+                    modifier = Modifier
+                        .semantics {
+                            contentDescription = "Pedra ${Words.tile(t)}"
+                            role = Role.Button
+                        }
+                        .clickable { if (vm.tapTile(t).size > 1) onChoose(t) },
+                )
+            }
         }
     }
 }
