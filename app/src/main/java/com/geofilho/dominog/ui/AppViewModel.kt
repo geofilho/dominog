@@ -180,7 +180,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         cpuJob?.cancel()
         val r = Round.deal(starter)
         round = r
-        turnSerial++
         revealed = false
         shuffling = true
         sfx.playShuffle()
@@ -247,14 +246,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun draw() {
-        askDraw = false
         if (!canAct()) return
         if (mode == Mode.BT_GUEST) { link.send(Proto.DRAW); return }
         act(me) { it.draw(me) != null }
     }
 
     fun pass() {
-        askDraw = false
         if (!canAct()) return
         if (mode == Mode.BT_GUEST) { link.send(Proto.PASS); return }
         act(me) { it.pass(me) }
@@ -308,7 +305,6 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun afterChange(before: Snap, r: Round) {
         val turnChanged = before.current != r.current
-        if (turnChanged || r.isOver) turnSerial++
         if (mode == Mode.LOCAL && (turnChanged || r.isOver)) revealed = false
         bump()
 
@@ -521,31 +517,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     /** "Você 2, Computador 1" (falado/mostrado no fim da rodada). */
     fun placarText(): String = "${spokenName(0)} ${scores[0]}, ${spokenName(1)} ${scores[1]}"
 
-    /** Incrementa quando o foco do TalkBack deve ir para o botão Comprar pedra / Passar vez. */
-    var actionFocus by mutableIntStateOf(0); private set
-
     /**
-     * Sem pedra que encaixe: depois que a voz terminar, com leitor de tela abre o diálogo de comprar/passar
-     * (o foco do TalkBack vai direto para o botão); sem leitor, os botões ficam na tela.
+     * true quando o foco do TalkBack deve ir para o botão Comprar pedra / Passar vez
+     * (depois que a voz termina o aviso). A tela consome com [consumeBuyFocus].
      */
-    var askDraw by mutableStateOf(false); private set
+    var buyFocusPending by mutableStateOf(false); private set
 
-    /** Conta as vezes (turnos) para a janela de comprar aparecer só uma vez por vez. */
-    private var turnSerial = 0
-    private var drawDialogTurn = -1
+    private fun focusActionAfterSpeech() = voice.afterQueue { buyFocusPending = true }
 
-    private fun focusActionAfterSpeech() = voice.afterQueue {
-        if (screenReaderOn && drawDialogTurn != turnSerial) {
-            // Primeira vez nesta vez: janela só com o botão Comprar pedra (foco direto nele).
-            drawDialogTurn = turnSerial
-            askDraw = true
-        } else {
-            // Continua sem pedra depois de comprar: foco no botão Comprar pedra da própria tela.
-            actionFocus++
-        }
-    }
-
-    fun dismissDraw() { askDraw = false }
+    fun consumeBuyFocus() { buyFocusPending = false }
 
     private fun hintFor(r: Round, p: Int): String = when {
         r.isOver || r.board.isEmpty() || r.playable(p).isNotEmpty() -> ""

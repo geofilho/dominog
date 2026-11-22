@@ -47,6 +47,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
@@ -92,11 +93,6 @@ fun GameScreen(vm: AppViewModel) {
         )
     }
     if (choosing != null && (!vm.canAct() || choosing !in r.hands[me])) choosing = null
-
-    // Diálogo de comprar/passar (com leitor de tela): o foco do TalkBack vai direto para o botão.
-    if (vm.askDraw && r.result == null && vm.canAct() && (r.canDraw(me) || r.mustPass(me))) {
-        DrawDialog(vm, r, me)
-    }
 
     // A tela cabe inteira, sem rolar: mesa e mão ficam em áreas próprias.
     // Só a área de baixo (suas pedras / fim da rodada) rola, se precisar.
@@ -204,17 +200,9 @@ fun GameScreen(vm: AppViewModel) {
                 val c = choosing
                 if (c != null && res == null) SideChooser(r, c, v, onPick = { s -> choosing = null; vm.play(c, s) }, onCancel = { choosing = null })
                 if (res == null && !vm.shuffling && vm.canAct()) {
-                    // Depois de comprar e continuar sem pedra, o foco volta para este botão.
-                    val actionFocus = remember { FocusRequester() }
-                    val seenAction = remember { vm.actionFocus }
-                    if (r.canDraw(me)) ActionButton("Comprar pedra", Modifier.focusRequester(actionFocus)) { vm.draw() }
-                    if (r.mustPass(me)) ActionButton("Passar vez", Modifier.focusRequester(actionFocus)) { vm.pass() }
-                    LaunchedEffect(vm.actionFocus) {
-                        if (vm.actionFocus != seenAction) {
-                            kotlinx.coroutines.delay(200)
-                            runCatching { actionFocus.requestFocus() }
-                        }
-                    }
+                    // Botão nativo do Android: o app consegue pôr o foco do TalkBack direto nele.
+                    if (r.canDraw(me)) NativeFocusButton("Comprar pedra", vm) { vm.draw() }
+                    if (r.mustPass(me)) NativeFocusButton("Passar vez", vm) { vm.pass() }
                 }
             }
         }
@@ -223,42 +211,6 @@ fun GameScreen(vm: AppViewModel) {
         if (screenReader) {
             OutlinedButton(onClick = { vm.describe() }, modifier = Modifier.padding(top = 2.dp)) {
                 Text("Ouvir mesa")
-            }
-        }
-    }
-}
-
-/**
- * Sem pedra que encaixe, na primeira vez da sua vez (com leitor de tela): janela com um botão só,
- * Comprar pedra / Passar vez, com o foco do TalkBack já nele. As pontas e o monte estão na descrição.
- * Para fechar sem comprar, use o voltar do Android.
- */
-@Composable
-private fun DrawDialog(vm: AppViewModel, r: Round, me: Int) {
-    val buy = r.canDraw(me)
-    val label = if (buy) "Comprar pedra" else "Passar vez"
-    val info = if (r.board.isEmpty()) "Nenhuma pedra sua encaixa."
-    else "Nenhuma pedra sua encaixa nas pontas ${Words.n(r.leftEnd!!)} e ${Words.n(r.rightEnd!!)}." +
-        if (buy) " Monte com ${vm.pedras(r.boneyard.size)}." else " O monte acabou."
-    androidx.compose.ui.window.Dialog(onDismissRequest = { vm.dismissDraw() }) {
-        val focus = remember { FocusRequester() }
-        LaunchedEffect(Unit) {
-            kotlinx.coroutines.delay(150)
-            runCatching { focus.requestFocus() }
-        }
-        Button(
-            onClick = { if (buy) vm.draw() else vm.pass() },
-            colors = ButtonDefaults.buttonColors(containerColor = Palette.Start, contentColor = Color.White),
-            shape = RoundedCornerShape(24.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 120.dp)
-                .focusRequester(focus)
-                .semantics { contentDescription = "$label. $info" },
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(label, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-                Text(info, fontSize = 15.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
             }
         }
     }
@@ -473,5 +425,44 @@ private fun ShuffleAnimation() {
                 drawRoundRect(Palette.Back, Offset(cx - tw / 2, cy - th / 2), Size(tw, th), CornerRadius(4.dp.toPx()))
             }
         }
+    }
+}
+
+/**
+ * Botão nativo (android.widget.Button) com a mesma aparência dos outros. Quando o jogo pede
+ * ([AppViewModel.buyFocusPending]), o foco do TalkBack é colocado nele com ACTION_ACCESSIBILITY_FOCUS,
+ * que funciona de forma confiável em views nativas.
+ */
+@Composable
+private fun NativeFocusButton(label: String, vm: AppViewModel, onClick: () -> Unit) {
+    var view by remember { mutableStateOf<android.widget.Button?>(null) }
+    val click by androidx.compose.runtime.rememberUpdatedState(onClick)
+    androidx.compose.ui.viewinterop.AndroidView(
+        factory = { ctx ->
+            android.widget.Button(ctx).apply {
+                isAllCaps = false
+                textSize = 18f
+                setTextColor(android.graphics.Color.WHITE)
+                val dp = ctx.resources.displayMetrics.density
+                background = android.graphics.drawable.GradientDrawable().apply {
+                    setColor(Palette.Action.toArgb())
+                    cornerRadius = 8 * dp
+                }
+                minHeight = (56 * dp).toInt()
+                minimumHeight = (56 * dp).toInt()
+                setPadding((24 * dp).toInt(), 0, (24 * dp).toInt(), 0)
+                stateListAnimator = null
+                setOnClickListener { click() }
+            }
+        },
+        update = { it.text = label; view = it },
+        modifier = Modifier.padding(top = 10.dp),
+    )
+    LaunchedEffect(vm.buyFocusPending, view) {
+        val v = view ?: return@LaunchedEffect
+        if (!vm.buyFocusPending) return@LaunchedEffect
+        kotlinx.coroutines.delay(250)
+        v.performAccessibilityAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_ACCESSIBILITY_FOCUS, null)
+        vm.consumeBuyFocus()
     }
 }
