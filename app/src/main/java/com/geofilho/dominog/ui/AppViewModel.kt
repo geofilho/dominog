@@ -155,8 +155,13 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         when (mode) {
             Mode.BT_GUEST -> link.send(Proto.NEXT)
             else -> {
-                val w = r.result!!.winner
-                dealRound(if (w >= 0) w else 1 - r.current)
+                val res = r.result!!
+                val starter = if (res.winner >= 0) res.winner else 1 - r.current
+                // Mesmo aparelho: quem fez a última ação está com o aparelho na mão
+                // (quem bateu, ou quem passou por último no jogo trancado).
+                // Se for ele quem começa, as pedras já aparecem.
+                val holder = if (res.reason == EndReason.BATIDA) res.winner else r.current
+                dealRound(starter, revealNow = mode == Mode.LOCAL && starter == holder)
             }
         }
     }
