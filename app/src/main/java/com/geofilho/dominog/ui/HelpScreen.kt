@@ -37,10 +37,12 @@ private fun helpBlocks(version: String): List<Block> {
         t("Dominó G (versão $version)"),
         p(
             "O Dominó G é um jogo de dominó para Android, leve, feito para ser jogado tanto por quem enxerga " +
-                "quanto por quem usa leitor de tela. Dá para jogar contra o computador, em três níveis, com até 4 " +
-                "pessoas pelo Bluetooth (com 4, em duplas) ou com um parceiro no mesmo aparelho. O jogo fala cada jogada e as pontas da " +
-                "mesa, tem sons de pedra, bipes e aplausos, e guarda o histórico de partidas. Não tem propagandas e " +
-                "funciona do Android 8 em diante.",
+                "quanto por quem usa leitor de tela. Dá para jogar contra o computador, em três níveis; com até 4 " +
+                "pessoas pelo Bluetooth ou online, pela internet, com amigos de qualquer lugar usando um código de sala " +
+                "(com 4, em duplas); ou com um parceiro no mesmo aparelho. A pontuação segue o tipo de batida, a partida " +
+                "pode ser de 3, 5 ou 10 pontos, e o jogo pode ser com ou sem compra. O jogo fala cada jogada e as pontas da " +
+                "mesa, tem sons de pedra, bipes e aplausos, e guarda o histórico de partidas. Não tem propagandas, " +
+                "não pede conta nem senha e funciona do Android 8 em diante.",
         ),
 
         h("LINK PARA BAIXAR"),
