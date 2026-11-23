@@ -226,6 +226,17 @@ private fun helpBlocks(version: String): List<Block> {
             "5. Se a internet de alguém cair por mais de uns 50 segundos, a partida termina para todos e cada um volta para a sala. " +
                 "Se quem criou a sala sair, a sala fecha.",
         ),
+        p(
+            "6. As jogadas passam pela internet, então a jogada do outro jogador demora um pouco mais para chegar do que no " +
+                "Bluetooth: normalmente menos de um segundo, mas pode passar disso se a internet de alguém estiver lenta.",
+        ),
+        p(
+            "7. Limites do jogo online, que é gratuito:\n" +
+                "- Cada sala tem no máximo 4 jogadores.\n" +
+                "- O serviço gratuito usado pelo jogo aceita até 100 aparelhos conectados ao mesmo tempo, somando todas as salas " +
+                "de todos os jogadores do Dominó G. Se esse limite for atingido, quem tentar entrar precisa esperar alguém sair.\n" +
+                "- Uma sala sem sinal de quem a criou por cerca de 2 minutos deixa de existir, e é preciso criar outra.",
+        ),
 
         h("JOGAR COM UM PARCEIRO NO MESMO APARELHO"),
         p("1. O Jogador 1 começa a partida. As pedras começam ocultas: toque em Mostrar pedras para ver as suas."),
