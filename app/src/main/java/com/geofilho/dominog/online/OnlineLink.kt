@@ -94,12 +94,14 @@ class OnlineLink(private val prefs: SharedPreferences) {
                     if (host == null || isStale(host)) { chosen = c; break }
                 }
                 val c = chosen ?: throw Exception("Não foi possível criar a sala. Tente de novo.")
-                put("/salas/$c", JSONObject().put("host", JSONObject().put("id", myId).put("t", serverTime())))
+                if (!put("/salas/$c", JSONObject().put("host", JSONObject().put("id", myId).put("t", serverTime())))) {
+                    throw Exception(problemMessage())
+                }
                 code = c; isHost = true
                 startRoomJobs(c)
                 _state.value = OnlineState.Hosting(c)
             } catch (e: Exception) {
-                fail(e.message ?: "Não foi possível criar a sala. Confira a internet.")
+                fail(e.message ?: problemMessage())
             }
         }
     }
@@ -125,7 +127,7 @@ class OnlineLink(private val prefs: SharedPreferences) {
                 _state.value = OnlineState.Joined(c)
                 _events.emit(LinkEvent.Opened(id, accepted = false, peerName = "Amigo"))
             } catch (e: Exception) {
-                fail(e.message ?: "Não foi possível entrar na sala. Confira a internet.")
+                fail(e.message ?: problemMessage())
             }
         }
     }
@@ -208,6 +210,7 @@ class OnlineLink(private val prefs: SharedPreferences) {
 
     private suspend fun listenLoop(c: String) {
         var wait = 1000L
+        var failures = 0
         while (scope.isActive && code == c) {
             try {
                 val token = ensureAuth()
@@ -218,6 +221,7 @@ class OnlineLink(private val prefs: SharedPreferences) {
                 }
                 if (conn.responseCode != 200) throw Exception("escuta ${conn.responseCode}")
                 wait = 1000L
+                failures = 0
                 BufferedReader(InputStreamReader(conn.inputStream, Charsets.UTF_8)).use { r ->
                     var event = ""
                     while (code == c) {
@@ -238,6 +242,8 @@ class OnlineLink(private val prefs: SharedPreferences) {
                 conn.disconnect()
             } catch (e: Exception) {
                 if (code != c) return
+                // Várias falhas seguidas: avisa a pessoa (uma vez) e continua tentando.
+                if (++failures == 3) _errors.tryEmit(problemMessage())
                 delay(wait)
                 wait = (wait * 2).coerceAtMost(15000)
             }
@@ -324,7 +330,7 @@ class OnlineLink(private val prefs: SharedPreferences) {
                 request(
                     "POST", "https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=$API_KEY",
                     "{\"returnSecureToken\":true}", "application/json",
-                ) ?: throw Exception("Sem conexão com a internet."),
+                ) ?: throw Exception(problemMessage()),
             )
             val token = ok.getString("idToken")
             prefs.edit().putString(PREF_REFRESH, ok.getString("refreshToken")).apply()
@@ -337,11 +343,11 @@ class OnlineLink(private val prefs: SharedPreferences) {
     // ================= Banco (REST) =================
 
     private fun getJson(path: String): JSONObject? {
-        val text = request("GET", "$DB$path.json?auth=${ensureAuth()}") ?: throw Exception("Sem conexão com a internet.")
+        val text = request("GET", "$DB$path.json?auth=${ensureAuth()}") ?: throw Exception(problemMessage())
         return if (text.trim() == "null") null else runCatching { JSONObject(text) }.getOrNull()
     }
 
-    private fun put(path: String, body: Any) { request("PUT", "$DB$path.json?auth=${ensureAuth()}", body.toString()) }
+    private fun put(path: String, body: Any): Boolean = request("PUT", "$DB$path.json?auth=${ensureAuth()}", body.toString()) != null
     private fun post(path: String, body: JSONObject) { request("POST", "$DB$path.json?auth=${ensureAuth()}", body.toString()) }
     private fun patch(path: String, body: JSONObject) { request("PATCH", "$DB$path.json?auth=${ensureAuth()}", body.toString()) }
     private fun delete(path: String) { request("DELETE", "$DB$path.json?auth=${ensureAuth()}") }
@@ -371,6 +377,20 @@ class OnlineLink(private val prefs: SharedPreferences) {
         } finally {
             conn.disconnect()
         }
+    }
+
+    /**
+     * O banco do jogo não respondeu. Se a internet do aparelho funciona (o Google responde), o problema
+     * é do jogo online: cheio (limite de conexões do plano gratuito) ou fora do ar por um tempo.
+     */
+    private fun problemMessage(): String {
+        val internetOk = runCatching {
+            val conn = URL("https://clients3.google.com/generate_204").openConnection() as HttpURLConnection
+            conn.connectTimeout = 8000; conn.readTimeout = 8000
+            try { conn.responseCode in 200..399 } finally { conn.disconnect() }
+        }.getOrDefault(false)
+        return if (internetOk) "O jogo online está cheio ou indisponível agora. Tente de novo em alguns minutos."
+        else "Sem conexão com a internet. Confira o Wi-Fi ou os dados móveis."
     }
 
     private fun serverTime() = JSONObject().put(".sv", "timestamp")

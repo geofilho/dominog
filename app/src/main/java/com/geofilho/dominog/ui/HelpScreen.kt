@@ -236,7 +236,8 @@ private fun helpBlocks(version: String): List<Block> {
             "7. Limites do jogo online, que é gratuito:\n" +
                 "- Cada sala tem no máximo 4 jogadores.\n" +
                 "- O serviço gratuito usado pelo jogo aceita até 100 aparelhos conectados ao mesmo tempo, somando todas as salas " +
-                "de todos os jogadores do Dominó G. Se esse limite for atingido, quem tentar entrar precisa esperar alguém sair.\n" +
+                "de todos os jogadores do Dominó G. Se esse limite for atingido, o jogo avisa: O jogo online está cheio ou indisponível " +
+                "agora. Tente de novo em alguns minutos. Se o problema for a internet do aparelho, o aviso é outro: Sem conexão com a internet.\n" +
                 "- Uma sala sem sinal de quem a criou por cerca de 2 minutos deixa de existir, e é preciso criar outra.",
         ),
 
