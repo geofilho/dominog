@@ -30,6 +30,7 @@ class MainActivity : ComponentActivity() {
                 when (vm.screen) {
                     Screen.MENU -> MenuScreen(vm)
                     Screen.BLUETOOTH -> BluetoothScreen(vm)
+                    Screen.ONLINE -> com.geofilho.dominog.ui.OnlineScreen(vm)
                     Screen.GAME -> GameScreen(vm)
                     Screen.HELP -> HelpScreen(vm)
                     Screen.DIAGNOSTIC -> DiagnosticScreen(vm)

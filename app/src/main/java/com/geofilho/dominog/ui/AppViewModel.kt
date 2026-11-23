@@ -36,7 +36,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class Screen { MENU, BLUETOOTH, GAME, HELP, DIAGNOSTIC, SETTINGS }
+enum class Screen { MENU, BLUETOOTH, ONLINE, GAME, HELP, DIAGNOSTIC, SETTINGS }
 
 /** Opções de pontos para vencer a partida (o botão do menu alterna entre elas). */
 val TARGET_OPTIONS = listOf(3, 5, 10)
@@ -50,6 +50,8 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     val updater = Updater(app)
     val sfx = SoundFx()
     val link = BtLink(app)
+    /** Jogo pela internet (Firebase): as mesmas salas do Bluetooth, com código. */
+    val online = com.geofilho.dominog.online.OnlineLink(prefs)
 
     /** Chave "Silenciar sons do jogo" (Diagnóstico): cala os efeitos, mantém as falas. */
     var soundsMuted by mutableStateOf(prefs.getBoolean("sons_mudos", false)); private set
@@ -90,8 +92,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         myId,
         playerName.ifBlank { "Amigo" },
         object : Transport {
-            override fun send(linkId: Int, line: String) = link.send(linkId, line)
-            override fun close(linkId: Int) = link.close(linkId)
+            override fun send(linkId: Int, line: String) =
+                if (online.isLink(linkId)) online.send(linkId, line) else link.send(linkId, line)
+            override fun close(linkId: Int) =
+                if (online.isLink(linkId)) online.close(linkId) else link.close(linkId)
         },
         this,
     )
@@ -157,6 +161,29 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         }
         viewModelScope.launch {
             link.errors.collect { msg -> lobbyMessage = msg; say(msg, flush = true) }
+        }
+        online.myId = myId
+        viewModelScope.launch {
+            online.events.collect { e ->
+                when (e) {
+                    is LinkEvent.Opened -> session.onOpened(e.id, e.accepted)
+                    is LinkEvent.Line -> session.onLine(e.id, e.text)
+                    is LinkEvent.Closed -> session.onClosed(e.id)
+                }
+            }
+        }
+        viewModelScope.launch {
+            online.errors.collect { msg -> lobbyMessage = msg; say(msg, flush = true) }
+        }
+        viewModelScope.launch {
+            online.state.collect { st ->
+                when (st) {
+                    is com.geofilho.dominog.online.OnlineState.Hosting ->
+                        say("Sala criada. Código ${st.code.toList().joinToString(" ")}. Envie o código aos amigos.", flush = true)
+                    is com.geofilho.dominog.online.OnlineState.Joined -> say("Entrando na sala ${st.code.toList().joinToString(" ")}.", flush = true)
+                    else -> {}
+                }
+            }
         }
     }
 
@@ -249,14 +276,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
 
     /** Histórico de todos os modos (Configurações). */
     fun allHistoryText(): String = listOf(history.cpuText(), history.localText(), history.btText(null)).joinToString("\n\n")
-    fun openBluetooth() { screen = Screen.BLUETOOTH; lobbyMessage = null }
+    fun openBluetooth() { screen = Screen.BLUETOOTH; lobbyMessage = null; playingOnline = false }
+    fun openOnline() { screen = Screen.ONLINE; lobbyMessage = null; playingOnline = true }
+
+    /** Jogar online: cria uma sala nova (o código aparece na tela). */
+    fun createOnlineRoom() { mode = Mode.BT; lobbyMessage = null; online.create() }
+    /** Jogar online: entra na sala do amigo pelo código. */
+    fun joinOnlineRoom(code: String) { mode = Mode.BT; lobbyMessage = null; online.join(code) }
+
+    /** A sala em rede é pela internet (e não pelo Bluetooth)? */
+    var playingOnline = false; private set
     fun openHelp() { screen = Screen.HELP }
     fun openDiagnostic() { screen = Screen.DIAGNOSTIC }
 
     fun backToMenu() {
         cpuJob?.cancel()
         voice.stop()
-        if (mode == Mode.BT || screen == Screen.BLUETOOTH) leaveRoom()
+        if (mode == Mode.BT || screen == Screen.BLUETOOTH || screen == Screen.ONLINE) leaveRoom()
         round = null
         screen = Screen.MENU
     }
@@ -757,6 +793,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     /** Sai da sala: fecha as conexões e esquece os jogadores. */
     fun leaveRoom() {
         link.closeAll()
+        online.closeAll()
         session.reset()
         seatIds = emptyList()
         photos.keys.retainAll(setOf(myId))
@@ -862,7 +899,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
                 waitingAccept = false
                 lobbyMessage = reason
                 say(reason, flush = true)
-                if (screen == Screen.GAME) screen = Screen.BLUETOOTH
+                if (screen == Screen.GAME) screen = if (playingOnline) Screen.ONLINE else Screen.BLUETOOTH
                 bump()
             }
         }

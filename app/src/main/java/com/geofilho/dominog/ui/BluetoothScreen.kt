@@ -248,6 +248,12 @@ fun BluetoothScreen(vm: AppViewModel) {
         )
     }
 
+    InviteDialog(vm)
+}
+
+/** Convite para começar a partida (Bluetooth e online). */
+@Composable
+fun InviteDialog(vm: AppViewModel) {
     vm.inviteFrom?.let { from ->
         AlertDialog(
             onDismissRequest = {},
@@ -260,7 +266,7 @@ fun BluetoothScreen(vm: AppViewModel) {
 }
 
 @Composable
-private fun NameEditor(initial: String, onSave: (String) -> Unit) {
+fun NameEditor(initial: String, onSave: (String) -> Unit) {
     var name by rememberSaveable { mutableStateOf(initial) }
     Text("Digite seu nome para os amigos te encontrarem:", textAlign = TextAlign.Center)
     OutlinedTextField(
@@ -280,7 +286,7 @@ private fun NameEditor(initial: String, onSave: (String) -> Unit) {
 
 /** Sala com amigos: lista de jogadores (com fotos), escolha de parceiro (4 jogadores) e Iniciar jogo. */
 @Composable
-private fun Lobby(vm: AppViewModel) {
+fun Lobby(vm: AppViewModel) {
     val session = vm.session
     val roster = session.roster
     val partners = session.partners
@@ -338,7 +344,7 @@ private fun Lobby(vm: AppViewModel) {
         // Com 4 jogadores não há monte; a chave só vale com 2 ou 3.
         if (roster.size < 4) BuyingSwitch(vm)
     }
-    OutlinedButton(onClick = { vm.leaveRoom() }, modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)) { Text("Desconectar") }
+    OutlinedButton(onClick = { vm.leaveRoom() }, modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)) { Text(if (vm.playingOnline) "Sair da sala" else "Desconectar") }
 }
 
 /** Foto redonda do jogador (ou um círculo com ícone de pessoa, se não tiver foto). */

@@ -56,13 +56,14 @@ private fun helpBlocks(version: String): List<Block> {
                 "pedras que já saíram e tenta fechar as pontas para você.",
         ),
         p("2. Jogar pelo Bluetooth: abre a sala de jogo. Veja abaixo, em JOGAR PELO BLUETOOTH."),
+        p("3. Jogar online: jogar pela internet com amigos de qualquer lugar. Veja abaixo, em JOGAR ONLINE."),
         p(
-            "3. Jogar com um parceiro no mesmo aparelho: Jogador 1 e Jogador 2 usam o mesmo celular. Veja abaixo, " +
+            "4. Jogar com um parceiro no mesmo aparelho: Jogador 1 e Jogador 2 usam o mesmo celular. Veja abaixo, " +
                 "em JOGAR COM UM PARCEIRO NO MESMO APARELHO.",
         ),
         p(
-            "4. Configurações: abre uma página com estas opções. As escolhas ficam salvas e valem contra o computador, " +
-                "com o parceiro e nos convites que você faz pelo Bluetooth.\n" +
+            "5. Configurações: abre uma página com estas opções. As escolhas ficam salvas e valem contra o computador, " +
+                "com o parceiro e nos convites que você faz pelo Bluetooth e online.\n" +
                 "- Partida até 5 pontos: cada toque muda a pontuação para vencer a partida: 3, 5 ou 10 pontos.\n" +
                 "- Comprar pedras: chave que vem ligada. Desligada, o jogo é sem compra: as pedras que sobram ficam " +
                 "dormindo e quem não tem pedra que encaixe passa a vez. Com 4 jogadores não há monte, então a chave não muda nada.\n" +
@@ -71,9 +72,9 @@ private fun helpBlocks(version: String): List<Block> {
                 "ligado, as falas continuam.\n" +
                 "- Ver histórico dos jogos: mostra as partidas ganhas e perdidas contra o computador, no mesmo aparelho e pelo Bluetooth.",
         ),
-        p("5. Como usar: abre este texto."),
+        p("6. Como usar: abre este texto."),
         p(
-            "6. Diagnóstico: abre uma página com estas opções.\n" +
+            "7. Diagnóstico: abre uma página com estas opções.\n" +
                 "- Verificar atualização: procura versão nova. Se houver, mostra as novidades e pergunta se quer " +
                 "baixar e instalar. O botão também informa a versão instalada.\n" +
                 "- Compartilhar jogo: abre o compartilhamento do Android com este texto, já com o número da versão " +
@@ -202,6 +203,28 @@ private fun helpBlocks(version: String): List<Block> {
         p(
             "Para sair da sala, use o voltar do Android: o botão voltar, o gesto de voltar ou o gesto de voltar " +
                 "do TalkBack. O jogo pergunta se você quer voltar ao menu, com as opções Sim e Não.",
+        ),
+
+        h("JOGAR ONLINE"),
+        p(
+            "Para jogar pela internet com amigos que estão longe. Todos precisam de internet e da versão mais recente do Dominó G. " +
+                "Não precisa criar conta nem senha.",
+        ),
+        p("1. Na primeira vez, o jogo pede o seu nome, que aparece para os amigos."),
+        p(
+            "2. Criar sala: o jogo cria uma sala e mostra o código dela, com 4 números, por exemplo Sala 4 8 2 1. " +
+                "Toque em Compartilhar código para mandar o código aos amigos pelo WhatsApp ou outro aplicativo.",
+        ),
+        p(
+            "3. Entrar na sala de um amigo: digite os 4 números do código que ele mandou e toque em Entrar.",
+        ),
+        p(
+            "4. Com os amigos na sala, tudo funciona como no Bluetooth: até 4 jogadores, escolha de parceiro com 4, " +
+                "Iniciar jogo, pontos da partida e jogo com ou sem compra. Quem criou a sala comanda o jogo.",
+        ),
+        p(
+            "5. Se a internet de alguém cair por mais de uns 50 segundos, a partida termina para todos e cada um volta para a sala. " +
+                "Se quem criou a sala sair, a sala fecha.",
         ),
 
         h("JOGAR COM UM PARCEIRO NO MESMO APARELHO"),

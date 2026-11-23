@@ -78,6 +78,7 @@ fun MenuScreen(vm: AppViewModel) {
         Spacer(Modifier.height(36.dp))
         MenuButton("Jogar contra o computador", Palette.Start) { askLevel = true }
         MenuButton("Jogar pelo Bluetooth", Palette.Action) { vm.openBluetooth() }
+        MenuButton("Jogar online", Palette.Action) { vm.openOnline() }
         MenuButton("Jogar com um parceiro no mesmo aparelho", Palette.Action) { vm.startLocal() }
         MenuButton("Configurações", Palette.AreaBorder) { vm.openSettings() }
         MenuButton("Como usar", Palette.AreaBorder) { vm.openHelp() }
