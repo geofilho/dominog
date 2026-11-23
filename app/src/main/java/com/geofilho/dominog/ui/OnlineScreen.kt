@@ -140,7 +140,7 @@ private fun RoomCode(vm: AppViewModel, code: String) {
             .clickable(onClickLabel = "copiar código") { copy() }
             .padding(8.dp)
             .clearAndSetSemantics {
-                contentDescription = "Código da sala: ${code.toList().joinToString(" ")}"
+                contentDescription = "Código da sala: ${code.toList().joinToString(" ")}, copiar"
                 role = androidx.compose.ui.semantics.Role.Button
                 onClick(label = "copiar código") { copy(); true }
             },
