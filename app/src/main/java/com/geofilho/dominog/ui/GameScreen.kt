@@ -349,7 +349,7 @@ private fun Hand(vm: AppViewModel, r: Round, me: Int, @Suppress("UNUSED_PARAMETE
                 androidx.compose.ui.viewinterop.AndroidView(
                     factory = { ctx -> NativeTileView(ctx) },
                     update = { v ->
-                        v.setTile(t.b, t.a, "Pedra ${Words.tile(t)}")
+                        v.setTile(t.b, t.a, Words.tile(t).replaceFirstChar { it.uppercaseChar() })
                         if (v.tag != t.id) {
                             v.tag = t.id
                             v.setOnClickListener { if (vm.tapTile(t).size > 1) choose(t) }
