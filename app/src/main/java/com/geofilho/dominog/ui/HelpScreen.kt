@@ -213,7 +213,7 @@ private fun helpBlocks(version: String): List<Block> {
         p("1. Na primeira vez, o jogo pede o seu nome, que aparece para os amigos."),
         p(
             "2. Criar sala: o jogo cria uma sala e mostra o código dela, com 4 números, por exemplo Sala 4 8 2 1. " +
-                "Toque em Compartilhar código para mandar o código aos amigos pelo WhatsApp ou outro aplicativo.",
+                "Tocando no código, ele é copiado. Ou toque em Compartilhar código para mandar o código aos amigos pelo WhatsApp ou outro aplicativo.",
         ),
         p(
             "3. Entrar na sala de um amigo: digite os 4 números do código que ele mandou e toque em Entrar.",

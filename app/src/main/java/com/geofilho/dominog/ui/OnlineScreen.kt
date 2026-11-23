@@ -3,6 +3,7 @@ package com.geofilho.dominog.ui
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -28,6 +29,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.semantics
@@ -90,7 +93,7 @@ fun OnlineScreen(vm: AppViewModel) {
                 Text(st.message, modifier = Modifier.padding(12.dp))
             }
             is OnlineState.Hosting -> {
-                RoomCode(st.code)
+                RoomCode(vm, st.code)
                 MenuButton("Compartilhar código", Palette.Action) {
                     val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(
                         Intent.EXTRA_TEXT,
@@ -106,7 +109,7 @@ fun OnlineScreen(vm: AppViewModel) {
                 }
             }
             is OnlineState.Joined -> {
-                RoomCode(st.code)
+                RoomCode(vm, st.code)
                 if (vm.session.roster.size > 1) Lobby(vm)
                 else {
                     CircularProgressIndicator(Modifier.padding(top = 12.dp))
@@ -120,16 +123,29 @@ fun OnlineScreen(vm: AppViewModel) {
     InviteDialog(vm)
 }
 
-/** Código da sala em letras grandes; o TalkBack lê número por número. */
+/** Código da sala em letras grandes; o TalkBack lê número por número. Tocar copia o código. */
 @Composable
-private fun RoomCode(code: String) {
+private fun RoomCode(vm: AppViewModel, code: String) {
+    val ctx = LocalContext.current
+    val copy = {
+        val cb = ctx.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        cb.setPrimaryClip(android.content.ClipData.newPlainText("Código da sala", code))
+        vm.say("Código copiado", flush = true)
+    }
     Text(
         "Sala $code",
         fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Palette.Status,
         modifier = Modifier
             .padding(vertical = 12.dp)
-            .clearAndSetSemantics { contentDescription = "Código da sala: ${code.toList().joinToString(" ")}" },
+            .clickable(onClickLabel = "copiar código") { copy() }
+            .padding(8.dp)
+            .clearAndSetSemantics {
+                contentDescription = "Código da sala: ${code.toList().joinToString(" ")}"
+                role = androidx.compose.ui.semantics.Role.Button
+                onClick(label = "copiar código") { copy(); true }
+            },
     )
+    Text("Toque no código para copiar.", fontSize = 14.sp, color = Palette.Text.copy(alpha = 0.75f), modifier = Modifier.clearAndSetSemantics { })
 }
 
 @Composable

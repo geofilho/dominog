@@ -729,7 +729,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
      * Avisos falados: só com leitor de tela ligado. Sem leitor, aparecem só na linha de status.
      * (No modo parceiro, "Mostrando pedras" e "Passe para o jogador" falam sempre; eles usam voice.speak direto.)
      */
-    private fun say(text: String, flush: Boolean = false) {
+    fun say(text: String, flush: Boolean = false) {
         if (text.isBlank()) return
         DiagLog.add("VOZ", (if (screenReaderOn) "" else "(calada, sem leitor) ") + text.trim())
         status = text.trim()
