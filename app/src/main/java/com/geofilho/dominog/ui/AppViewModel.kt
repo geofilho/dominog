@@ -439,6 +439,11 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         }
         if (r.consecutivePasses > before.passes) {
             sb.append(if (before.current == me && mode != Mode.LOCAL) "Você passou. " else "${spokenName(before.current)} passou. ")
+            // Você passou: o botão Passar vez some e o TalkBack perderia o lugar. Leva o foco para "Suas pedras".
+            if (before.current == me && mode != Mode.LOCAL && !r.isOver) {
+                DiagLog.add("FOCO", "você passou: levar foco a Suas pedras")
+                startFocus++
+            }
         }
         // Comprou e continua sem pedra que encaixe: avisa de novo e leva o foco ao botão.
         val myTurnNow = !r.isOver && r.current == me && (mode != Mode.LOCAL || revealed)
@@ -477,7 +482,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
             return
         }
         val text = when {
-            p == me -> "Sua vez"
+            p == me -> if (newRound) "Você começa" else "Sua vez"
             mode == Mode.CPU -> if (newRound) "Computador começa" else ""
             newRound -> "${nameOf(p)} começa"
             r.n > 2 -> "Vez de ${nameOf(p)}"

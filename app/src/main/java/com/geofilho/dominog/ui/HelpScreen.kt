@@ -146,7 +146,8 @@ private fun helpBlocks(version: String): List<Block> {
         p(
             "3. Quando nenhuma pedra sua encaixa: depois do aviso, o foco vai direto para o botão Comprar pedra, que " +
                 "fica no fim da tela, depois de Ouvir mesa. Toque duas vezes para comprar. Se a pedra comprada também " +
-                "não servir, o foco continua no botão, e é só tocar de novo. Com o monte vazio, o botão é Passar vez.",
+                "não servir, o foco continua no botão, e é só tocar de novo. Com o monte vazio, ou no jogo sem compra, " +
+                "o botão é Passar vez. Depois de passar a vez, o foco volta para o título Suas pedras.",
         ),
         p(
             "4. Quando a pedra comprada encaixa: a voz diz qual pedra você comprou e o foco vai direto para ela. " +
