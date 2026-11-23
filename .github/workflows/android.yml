@@ -54,14 +54,33 @@ jobs:
           PREV=$(curl -sfL https://github.com/${{ github.repository }}/releases/download/ultima-versao/commit.txt || true)
           if [ -n "$PREV" ] && git cat-file -e "$PREV^{commit}" 2>/dev/null; then RANGE="$PREV..HEAD"; else RANGE="-1"; fi
           git log $RANGE --no-merges --invert-grep --grep='^Build:' --pretty='%B' \
-            | grep -v -E '^(Co-Authored-By|Claude-Session):' | cat -s > novidades.txt
+            | grep -v -E '^(Co-Authored-By|Claude-Session):' | sed 's/ *\[teste\]//' | cat -s > novidades.txt
           [ -s novidades.txt ] || echo "Melhorias internas." > novidades.txt
           git rev-parse HEAD > commit.txt
+      # Commit com "[teste]" na mensagem: gera um APK de teste separado, sem publicar a versão oficial.
+      - name: Tipo de publicação
+        id: tipo
+        env:
+          MSG: ${{ github.event.head_commit.message }}
+        run: |
+          if printf '%s' "$MSG" | grep -q '\[teste\]'; then echo "teste=1" >> "$GITHUB_OUTPUT"; else echo "teste=0" >> "$GITHUB_OUTPUT"; fi
+      - name: Publicar APK de teste
+        if: steps.tipo.outputs.teste == '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: teste
+          name: Dominó G (teste, não oficial)
+          prerelease: true
+          make_latest: false
+          target_commitish: ${{ github.sha }}
+          body: "APK de TESTE (versão 1.0.${{ github.run_number }}), ainda não publicado como oficial."
+          files: DominoG.apk
       - uses: actions/upload-artifact@v4
         with:
           name: DominoG-apk
           path: DominoG.apk
       - name: Publicar APK na página de Releases
+        if: steps.tipo.outputs.teste != '1'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ultima-versao
@@ -77,6 +96,7 @@ jobs:
             commit.txt
       # Guarda também cada versão numa publicação própria (o link da última versão não muda).
       - name: Guardar esta versão (histórico)
+        if: steps.tipo.outputs.teste != '1'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}

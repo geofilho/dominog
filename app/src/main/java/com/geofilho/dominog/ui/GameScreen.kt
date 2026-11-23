@@ -144,13 +144,13 @@ fun GameScreen(vm: AppViewModel) {
             Box(
                 Modifier
                     .fillMaxWidth()
-                    .height(84.dp)
+                    .height(BOARD_HEIGHT)
                     .clip(RoundedCornerShape(8.dp))
                     .background(Palette.Felt),
                 contentAlignment = Alignment.Center,
             ) {
                 if (vm.shuffling) ShuffleAnimation()
-                else Board(r, v, autoScroll = !screenReader)
+                else Board(r, v)
             }
         }
 
@@ -281,33 +281,52 @@ private fun Modifier.dashedBorder(): Modifier = drawBehind {
     drawRoundRect(Palette.AreaBorder, style = stroke, cornerRadius = CornerRadius(10.dp.toPx()))
 }
 
+/** Altura fixa da mesa: cabe a mesa cheia (28 pedras) sem a área mudar de tamanho durante a rodada. */
+private val BOARD_HEIGHT = 132.dp
+
+/**
+ * Mesa em fileiras, como linhas de texto: da ponta esquerda (primeira pedra da primeira fileira)
+ * até a ponta direita (última pedra da última fileira). Nada rola: as pedras diminuem conforme a
+ * mesa enche, para tudo caber na altura fixa. Cada pedra continua sendo um elemento para o TalkBack.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Board(r: Round, @Suppress("UNUSED_PARAMETER") version: Int, autoScroll: Boolean) {
+private fun Board(r: Round, @Suppress("UNUSED_PARAMETER") version: Int) {
     if (r.board.isEmpty()) return
-    val scroll = rememberScrollState()
-    // Mantém visível a ponta onde a última pedra foi jogada. Com leitor de tela não rola sozinho:
-    // o movimento fazia o TalkBack tirar o foco das suas pedras e levar para a mesa.
-    LaunchedEffect(r.board.size) {
-        if (!autoScroll) return@LaunchedEffect
-        if (r.lastMove?.side == Side.LEFT) scroll.animateScrollTo(0) else scroll.animateScrollTo(scroll.maxValue)
-    }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .horizontalScroll(scroll)
-            .padding(horizontal = 10.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+    val gap = 2.dp
+    androidx.compose.foundation.layout.BoxWithConstraints(
+        Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 4.dp),
+        contentAlignment = Alignment.Center,
     ) {
-        r.board.forEach { p ->
-            // Identidade fixa por pedra: ao entrar uma pedra na ponta esquerda, as outras não "mudam de lugar".
-            androidx.compose.runtime.key(p.tile.id) {
-                DominoTile(
-                    p.left, p.right, vertical = p.tile.isDouble, unit = 30.dp,
-                    modifier = Modifier.clearAndSetSemantics {
-                        contentDescription = if (p.tile.isDouble) Words.tile(p.tile) else "${Words.n(p.left)} e ${Words.n(p.right)}"
-                    },
-                )
+        val doubles = r.board.map { it.tile.isDouble }
+        // Maior tamanho de pedra (de 30 até 12) com que todas as fileiras cabem na altura.
+        val unit = (30 downTo 12).map { it.dp }.firstOrNull { u ->
+            var rows = 1
+            var x = 0.dp
+            for (d in doubles) {
+                val w = if (d) u else u * 2
+                if (x > 0.dp && x + w > maxWidth) { rows++; x = 0.dp }
+                x += w + gap
+            }
+            rows * (u * 2 + gap * 2) <= maxHeight
+        } ?: 12.dp
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
+            verticalArrangement = Arrangement.spacedBy(gap * 2, Alignment.CenterVertically),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            r.board.forEach { p ->
+                // Identidade fixa por pedra: ao entrar uma pedra na ponta esquerda, as outras não "mudam de lugar".
+                androidx.compose.runtime.key(p.tile.id) {
+                    Box(Modifier.height(unit * 2), contentAlignment = Alignment.Center) {
+                        DominoTile(
+                            p.left, p.right, vertical = p.tile.isDouble, unit = unit,
+                            modifier = Modifier.clearAndSetSemantics {
+                                contentDescription = if (p.tile.isDouble) Words.tile(p.tile) else "${Words.n(p.left)} e ${Words.n(p.right)}"
+                            },
+                        )
+                    }
+                }
             }
         }
     }
