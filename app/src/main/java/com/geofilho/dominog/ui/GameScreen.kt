@@ -308,7 +308,7 @@ private fun Board(r: Round, @Suppress("UNUSED_PARAMETER") version: Int) {
                 if (x > 0.dp && x + w > maxWidth) { rows++; x = 0.dp }
                 x += w + gap
             }
-            rows * (u * 2 + gap * 2) <= maxHeight
+            (u * 2 + gap * 2) * rows <= maxHeight
         } ?: 12.dp
         FlowRow(
             horizontalArrangement = Arrangement.spacedBy(gap, Alignment.CenterHorizontally),
