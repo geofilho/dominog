@@ -80,7 +80,7 @@ class NativeTileView(context: Context) : View(context) {
     }
 
     companion object {
-        const val UNIT_DP = 34f
+        const val UNIT_DP = 40f
 
         /** Posições das pintas numa grade 3x3 (coluna, linha) para os valores 0..6. */
         private val PIPS: Array<IntArray> = arrayOf(

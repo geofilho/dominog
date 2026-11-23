@@ -220,6 +220,11 @@ fun GameScreen(vm: AppViewModel) {
         val handVisible = vm.mode != Mode.LOCAL || vm.revealed
         val needBuy = r.result == null && !vm.shuffling && handVisible && vm.canAct() && r.canDraw(me)
         val needPass = r.result == null && !vm.shuffling && handVisible && vm.canAct() && r.mustPass(me)
+        // Fim da rodada: Próxima rodada / Nova partida fica fixo embaixo, sempre visível
+        // (as pedras que sobraram podem ser muitas e rolam na área de cima).
+        if (r.result != null) {
+            NativeButton(if (vm.matchOver) "Nova partida" else "Próxima rodada", primary = true, onView = {}) { vm.nextRound() }
+        }
         if (needBuy || needPass) {
             NativeButton(if (needBuy) "Comprar pedra" else "Passar vez", primary = true, onView = { buyView = it }) {
                 if (needBuy) vm.draw() else vm.pass()
@@ -435,12 +440,6 @@ private fun RoundOver(vm: AppViewModel, r: Round, @Suppress("UNUSED_PARAMETER") 
                 }
             }
         }
-        Button(
-            onClick = { vm.nextRound() },
-            colors = ButtonDefaults.buttonColors(containerColor = Palette.Start, contentColor = Color.White),
-            shape = RoundedCornerShape(50),
-            modifier = Modifier.padding(top = 10.dp).heightIn(min = 60.dp),
-        ) { Text(if (vm.matchOver) "Nova partida" else "Próxima rodada", fontSize = 20.sp) }
     }
 }
 

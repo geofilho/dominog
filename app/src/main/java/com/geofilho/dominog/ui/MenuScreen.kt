@@ -97,7 +97,7 @@ fun MenuButton(label: String, color: Color = Palette.Action, onClick: () -> Unit
             .fillMaxWidth()
             .padding(vertical = 8.dp)
             .heightIn(min = 64.dp),
-    ) { Text(label, fontSize = 19.sp, fontWeight = FontWeight.SemiBold) }
+    ) { Text(label, fontSize = 19.sp, fontWeight = FontWeight.SemiBold, textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
 }
 
 @Composable
