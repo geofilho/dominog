@@ -13,6 +13,7 @@ import com.geofilho.dominog.ui.GameScreen
 import com.geofilho.dominog.ui.HelpScreen
 import com.geofilho.dominog.ui.MenuScreen
 import com.geofilho.dominog.ui.Screen
+import com.geofilho.dominog.ui.SettingsScreen
 import com.geofilho.dominog.ui.rememberScreenReaderOn
 
 class MainActivity : ComponentActivity() {
@@ -32,6 +33,7 @@ class MainActivity : ComponentActivity() {
                     Screen.GAME -> GameScreen(vm)
                     Screen.HELP -> HelpScreen(vm)
                     Screen.DIAGNOSTIC -> DiagnosticScreen(vm)
+                    Screen.SETTINGS -> SettingsScreen(vm)
                 }
             }
         }

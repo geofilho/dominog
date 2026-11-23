@@ -106,25 +106,6 @@ fun DiagnosticScreen(vm: AppViewModel) {
             com.geofilho.dominog.diag.DiagLog.clear()
             if (vm.screenReaderOn) vm.voice.speak("Relatório limpo", flush = true)
         }
-        // Chave: lida pelo TalkBack como "Silenciar sons do jogo, chave, ativada/desativada".
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(top = 12.dp)
-                .heightIn(min = 56.dp)
-                .toggleable(value = vm.soundsMuted, role = Role.Switch) { vm.changeSoundsMuted(it) }
-                .padding(horizontal = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text("Silenciar sons do jogo", fontSize = 19.sp)
-                Text(
-                    "Cala embaralhar, pedras, bipes, porta, aplausos e os avisos falados do modo parceiro. A fala do leitor de tela continua.",
-                    fontSize = 14.sp, color = Palette.Text.copy(alpha = 0.75f),
-                )
-            }
-            Switch(checked = vm.soundsMuted, onCheckedChange = null)
-        }
         UpdateDialog(vm)
     }
 

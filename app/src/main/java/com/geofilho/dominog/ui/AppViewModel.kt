@@ -36,7 +36,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-enum class Screen { MENU, BLUETOOTH, GAME, HELP, DIAGNOSTIC }
+enum class Screen { MENU, BLUETOOTH, GAME, HELP, DIAGNOSTIC, SETTINGS }
 
 /** Opções de pontos para vencer a partida (o botão do menu alterna entre elas). */
 val TARGET_OPTIONS = listOf(3, 5, 10)
@@ -117,7 +117,23 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     /** Pontos para vencer a partida em andamento (no Bluetooth, os de quem convidou). */
     var matchTarget by mutableIntStateOf(targetChoice); private set
 
-    /** Botão do menu: alterna entre 3, 5 e 10 pontos. */
+    /** Chave "Comprar pedras" (Configurações): desligada, as pedras que sobram ficam dormindo e quem não tem jogada passa. */
+    var buyingChoice by mutableStateOf(prefs.getBoolean("compra", true)); private set
+    /** Compra na partida em andamento (no Bluetooth, a de quem convidou). */
+    var matchBuying by mutableStateOf(buyingChoice); private set
+    /** Compra proposta no convite recebido. */
+    var inviteBuying by mutableStateOf(true); private set
+
+    fun changeBuying(on: Boolean) {
+        buyingChoice = on
+        prefs.edit().putBoolean("compra", on).apply()
+        say(if (on) "Comprar pedras ligado" else "Comprar pedras desligado. Jogo sem compra", flush = true)
+    }
+
+    /** "com compra" / "sem compra". */
+    fun buyingLabel(on: Boolean) = if (on) "com compra" else "sem compra"
+
+    /** Botão das Configurações: alterna entre 3, 5 e 10 pontos. */
     fun cycleTarget() {
         val i = TARGET_OPTIONS.indexOf(targetChoice)
         targetChoice = TARGET_OPTIONS[(i + 1) % TARGET_OPTIONS.size]
@@ -227,8 +243,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     /** Nível do computador escolhido no menu. */
     var level by mutableStateOf(Level.MEDIO); private set
 
-    fun startCpu(l: Level) { level = l; mode = Mode.CPU; matchTarget = targetChoice; newMatch() }
-    fun startLocal() { mode = Mode.LOCAL; matchTarget = targetChoice; newMatch() }
+    fun startCpu(l: Level) { level = l; mode = Mode.CPU; matchTarget = targetChoice; matchBuying = buyingChoice; newMatch() }
+    fun startLocal() { mode = Mode.LOCAL; matchTarget = targetChoice; matchBuying = buyingChoice; newMatch() }
+    fun openSettings() { screen = Screen.SETTINGS }
+
+    /** Histórico de todos os modos (Configurações). */
+    fun allHistoryText(): String = listOf(history.cpuText(), history.localText(), history.btText(null)).joinToString("\n\n")
     fun openBluetooth() { screen = Screen.BLUETOOTH; lobbyMessage = null }
     fun openHelp() { screen = Screen.HELP }
     fun openDiagnostic() { screen = Screen.DIAGNOSTIC }
@@ -263,7 +283,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     private fun dealRound(starter: Int?) {
         cpuJob?.cancel()
         val n = if (mode == Mode.BT) seatIds.size.coerceIn(2, 4) else 2
-        val r = Round.deal(starter, n = n)
+        val r = Round.deal(starter, n = n, buying = matchBuying)
         round = r
         revealed = false
         shuffling = true
@@ -581,7 +601,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         for (p in others()) sb.append("${spokenName(p)} tem ${pedras(r.hands[p].size)}. ")
         sb.append(if (r.board.isEmpty()) "Mesa vazia. " else "Mesa com ${pedras(r.board.size)}. ")
         // O monte só é informado depois que alguém comprar a primeira pedra.
-        if (r.boneyard.size < 28 - 7 * r.n) sb.append("Monte tem ${pedras(r.boneyard.size)}.")
+        if (r.buying && r.boneyard.size < 28 - 7 * r.n) sb.append("Monte tem ${pedras(r.boneyard.size)}.")
         say(sb.toString(), flush = true)
     }
 
@@ -700,6 +720,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
 
     private fun hintFor(r: Round, p: Int): String = when {
         r.isOver || r.board.isEmpty() || r.playable(p).isNotEmpty() -> ""
+        !r.buying && r.n < 4 -> " Você não tem pedras que encaixam. Jogo sem compra: toque no botão passar vez."
         r.boneyard.isNotEmpty() -> " Você não tem pedras que encaixam. Toque no botão comprar."
         r.n == 4 -> " Você não tem pedras que encaixam. Toque no botão passar vez."
         else -> " Monte vazio. Toque no botão passar vez."
@@ -739,7 +760,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     fun invite() {
         if (!session.canStart) return
         waitingAccept = true
-        session.invite(targetChoice)
+        session.invite(targetChoice, buyingChoice)
         say("Convite enviado. Aguardando ${if (session.roster.size > 2) "os outros aceitarem" else "o amigo aceitar"}.", flush = true)
     }
 
@@ -780,11 +801,12 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         Avatar.decodeBase64(base64)?.let { photos[id] = it; roomVersion++ }
     }
 
-    override fun onInvite(fromId: String, target: Int) {
+    override fun onInvite(fromId: String, target: Int, buying: Boolean) {
         val name = session.nameOf(fromId)
         inviteTarget = target
+        inviteBuying = buying
         inviteFrom = name
-        say("$name quer começar uma partida até $target pontos. Aceitar?", flush = true)
+        say("$name quer começar uma partida até $target pontos, ${buyingLabel(buying)}. Aceitar?", flush = true)
     }
 
     override fun onInviteDeclined(byName: String) {
@@ -793,9 +815,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         say("$byName recusou o convite", flush = true)
     }
 
-    override fun onStartGame(seatIds: List<String>, target: Int) {
+    override fun onStartGame(seatIds: List<String>, target: Int, buying: Boolean) {
         this.seatIds = seatIds
         matchTarget = target
+        matchBuying = buying
         mode = Mode.BT
         newMatch()
     }

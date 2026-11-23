@@ -252,7 +252,7 @@ fun BluetoothScreen(vm: AppViewModel) {
         AlertDialog(
             onDismissRequest = {},
             title = { Text("Convite") },
-            text = { Text("$from quer começar uma partida até ${vm.inviteTarget} pontos.") },
+            text = { Text("$from quer começar uma partida até ${vm.inviteTarget} pontos, ${vm.buyingLabel(vm.inviteBuying)}.") },
             confirmButton = { TextButton(onClick = { vm.answerInvite(true) }) { Text("Aceitar") } },
             dismissButton = { TextButton(onClick = { vm.answerInvite(false) }) { Text("Recusar") } },
         )
@@ -333,8 +333,10 @@ private fun Lobby(vm: AppViewModel) {
             modifier = Modifier.padding(12.dp),
         )
     } else if (session.canStart) {
-        MenuButton("Iniciar jogo até ${vm.targetChoice} pontos", Palette.Start) { vm.invite() }
+        MenuButton("Iniciar jogo até ${vm.targetChoice} pontos, ${vm.buyingLabel(vm.buyingChoice)}", Palette.Start) { vm.invite() }
         MenuButton("Mudar pontos da partida", Palette.AreaBorder) { vm.cycleTarget() }
+        // Com 4 jogadores não há monte; a chave só vale com 2 ou 3.
+        if (roster.size < 4) BuyingSwitch(vm)
     }
     OutlinedButton(onClick = { vm.leaveRoom() }, modifier = Modifier.padding(top = 12.dp, bottom = 12.dp)) { Text("Desconectar") }
 }

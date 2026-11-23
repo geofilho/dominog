@@ -128,4 +128,21 @@ class RoundTest {
         assertEquals(BatidaKind.LA_E_LO, r.result!!.kind)
         assertEquals(r.encode(), Round.decode(r.encode()).encode())
     }
+
+    @Test fun withoutBuyingPlayersPassAndGamesFinish() {
+        repeat(500) { seed ->
+            val r = Round.deal(null, Random(seed), buying = false)
+            assertEquals(r.encode(), Round.decode(r.encode()).encode())
+            assertTrue(!Round.decode(r.encode()).buying)
+            var guard = 0
+            while (!r.isOver) {
+                val p = r.current
+                assertTrue(!r.canDraw(p))
+                val m = Ai.choose(r, p)
+                if (m != null) assertTrue(r.play(p, m.tile, m.side)) else assertTrue(r.pass(p))
+                assertTrue(guard++ < 100)
+            }
+            assertEquals(14, r.boneyard.size)
+        }
+    }
 }

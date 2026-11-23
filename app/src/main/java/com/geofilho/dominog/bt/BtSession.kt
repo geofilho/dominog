@@ -35,11 +35,11 @@ class BtSession(
         fun onRoster() {}
         fun onPhoto(id: String, base64: String) {}
         /** Alguém convidou para começar (mostrar Aceitar/Recusar). */
-        fun onInvite(fromId: String, target: Int) {}
+        fun onInvite(fromId: String, target: Int, buying: Boolean) {}
         /** Convite recusado por [byName]. */
         fun onInviteDeclined(byName: String) {}
         /** Só na raiz: todos aceitaram; distribuir as pedras para os lugares [seatIds]. */
-        fun onStartGame(seatIds: List<String>, target: Int) {}
+        fun onStartGame(seatIds: List<String>, target: Int, buying: Boolean) {}
         /** Só na raiz: jogada vinda de outro aparelho (PLAY/DRAW/PASS/NEXT). */
         fun onRootMessage(parts: List<String>) {}
         /** Nos outros: mensagem do jogo vinda da raiz (STATE/ENDGAME). */
@@ -187,7 +187,7 @@ class BtSession(
                 listener.onRoster()
             }
             Proto.PHOTO -> storePhoto(parts)
-            Proto.INVITE -> parts.getOrNull(1)?.let { if (it != myId) listener.onInvite(it, targetOf(parts)) }
+            Proto.INVITE -> parts.getOrNull(1)?.let { if (it != myId) listener.onInvite(it, targetOf(parts), buyingOf(parts)) }
             Proto.INVRES -> listener.onInviteDeclined(parts.getOrNull(2).orEmpty())
             Proto.STATE, Proto.ENDGAME -> listener.onDownMessage(parts)
         }
@@ -206,7 +206,7 @@ class BtSession(
                     broadcastRoster()
                 }
             }
-            Proto.INVITE -> startInvite(parts.getOrNull(1).orEmpty(), targetOf(parts))
+            Proto.INVITE -> startInvite(parts.getOrNull(1).orEmpty(), targetOf(parts), buyingOf(parts))
             Proto.ANSWER -> answer(parts.getOrNull(1).orEmpty(), parts.getOrNull(2) == "1")
             else -> listener.onRootMessage(parts)
         }
@@ -215,15 +215,20 @@ class BtSession(
     /** Pontos para vencer a partida, escolhidos por quem convidou. */
     private var pendingTarget = DEFAULT_TARGET
 
-    private fun targetOf(parts: List<String>) = parts.getOrNull(2)?.toIntOrNull()?.takeIf { it in 1..99 } ?: DEFAULT_TARGET
+    /** Com compra de pedras, escolhida por quem convidou. */
+    private var pendingBuying = true
 
-    private fun startInvite(from: String, target: Int) {
+    private fun targetOf(parts: List<String>) = parts.getOrNull(2)?.toIntOrNull()?.takeIf { it in 1..99 } ?: DEFAULT_TARGET
+    private fun buyingOf(parts: List<String>) = parts.getOrNull(3) != "0"
+
+    private fun startInvite(from: String, target: Int, buying: Boolean) {
         if (inGame || !canStart) return
         pendingInviteFrom = from
         pendingTarget = target
+        pendingBuying = buying
         inviteAccepted.clear(); inviteAccepted += from
-        sendDown("${Proto.INVITE}|$from|$target")
-        if (from != myId) listener.onInvite(from, target)
+        sendDown("${Proto.INVITE}|$from|$target|${if (buying) 1 else 0}")
+        if (from != myId) listener.onInvite(from, target, buying)
     }
 
     private fun answer(id: String, ok: Boolean) {
@@ -240,7 +245,7 @@ class BtSession(
             pendingInviteFrom = null
             inGame = true
             broadcastRoster()
-            listener.onStartGame(seatOrder(), pendingTarget)
+            listener.onStartGame(seatOrder(), pendingTarget, pendingBuying)
         }
     }
 
@@ -291,8 +296,8 @@ class BtSession(
     // ================= Ações deste aparelho =================
 
     /** Convida todos para começar uma partida até [target] pontos. */
-    fun invite(target: Int = DEFAULT_TARGET) {
-        if (isRoot) startInvite(myId, target) else sendUp("${Proto.INVITE}|$myId|$target")
+    fun invite(target: Int = DEFAULT_TARGET, buying: Boolean = true) {
+        if (isRoot) startInvite(myId, target, buying) else sendUp("${Proto.INVITE}|$myId|$target|${if (buying) 1 else 0}")
     }
 
     fun answerInvite(ok: Boolean) {

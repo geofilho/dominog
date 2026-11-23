@@ -175,11 +175,19 @@ fun GameScreen(vm: AppViewModel) {
                 }
             }
             Text(
-                if (r.n == 4) "Sem monte" else "Monte: ${vm.pedras(r.boneyard.size)}", fontSize = 15.sp,
+                when {
+                    r.n == 4 -> "Sem monte"
+                    !r.buying -> "Sem compra: ${vm.pedras(r.boneyard.size)} dormindo"
+                    else -> "Monte: ${vm.pedras(r.boneyard.size)}"
+                }, fontSize = 15.sp,
                 modifier = Modifier
                     .padding(top = 2.dp)
                     .clearAndSetSemantics {
-                        contentDescription = if (r.n == 4) "Sem monte" else "Monte, ${vm.pedras(r.boneyard.size)}"
+                        contentDescription = when {
+                            r.n == 4 -> "Sem monte"
+                            !r.buying -> "Jogo sem compra, ${vm.pedras(r.boneyard.size)} dormindo"
+                            else -> "Monte, ${vm.pedras(r.boneyard.size)}"
+                        }
                     },
             )
         }

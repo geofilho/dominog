@@ -26,11 +26,13 @@ private class FakeNet {
             queue += { session.onClosed(linkId); other.session.onClosed(otherLink) }
         }
         var invitedTarget = 0
-        override fun onInvite(fromId: String, target: Int) { invites += fromId; invitedTarget = target }
+        var invitedBuying = true
+        override fun onInvite(fromId: String, target: Int, buying: Boolean) { invites += fromId; invitedTarget = target; invitedBuying = buying }
         override fun onDownMessage(parts: List<String>) { down += parts }
         override fun onRejected(reason: String) { rejected += reason }
         var startedTarget = 0
-        override fun onStartGame(seatIds: List<String>, target: Int) { started = seatIds; startedTarget = target }
+        var startedBuying = true
+        override fun onStartGame(seatIds: List<String>, target: Int, buying: Boolean) { started = seatIds; startedTarget = target; startedBuying = buying }
         override fun onRootMessage(parts: List<String>) { rootMsgs += parts }
     }
 
@@ -114,7 +116,7 @@ class RoomTest {
         for (x in listOf(a, b, c, d)) assertEquals("C" to "A", x.session.partners)
         assertTrue(a.session.canStart)
         // Convite de D: todos os outros precisam aceitar.
-        d.session.invite(10); net.run()
+        d.session.invite(10, buying = false); net.run()
         assertEquals(listOf("D"), a.invites); assertEquals(listOf("D"), b.invites); assertEquals(listOf("D"), c.invites)
         a.session.answerInvite(true); b.session.answerInvite(true); net.run()
         assertEquals(null, a.started)
@@ -123,6 +125,7 @@ class RoomTest {
         assertEquals(listOf("C", "B", "A", "D"), seats)
         // A pontuação escolhida por quem convidou chega a todos e vale na partida.
         assertEquals(10, b.invitedTarget); assertEquals(10, a.startedTarget)
+        assertFalse(b.invitedBuying); assertFalse(a.startedBuying)
         for (x in listOf(a, b, c, d)) assertTrue(x.session.inGame)
     }
 

@@ -71,6 +71,8 @@ class Round private constructor(
     var openingTile: Tile?,
     passes: Int,
     result: RoundResult?,
+    /** Com compra (padrão). Sem compra, as pedras que sobram ficam dormindo e quem não tem jogada passa. */
+    val buying: Boolean = true,
 ) {
     var current: Int = current; private set
     var consecutivePasses: Int = passes; private set
@@ -106,8 +108,8 @@ class Round private constructor(
     }
 
     fun playable(player: Int): List<Tile> = hands[player].filter { sidesFor(it).isNotEmpty() }
-    fun canDraw(player: Int) = !isOver && player == current && playable(player).isEmpty() && boneyard.isNotEmpty()
-    fun mustPass(player: Int) = !isOver && player == current && playable(player).isEmpty() && boneyard.isEmpty()
+    fun canDraw(player: Int) = !isOver && buying && player == current && playable(player).isEmpty() && boneyard.isNotEmpty()
+    fun mustPass(player: Int) = !isOver && player == current && playable(player).isEmpty() && (boneyard.isEmpty() || !buying)
 
     fun play(player: Int, tile: Tile, side: Side): Boolean {
         if (isOver || player != current) return false
@@ -186,18 +188,19 @@ class Round private constructor(
         append(if (r == null) "-" else "${r.winner}:${r.reason.ordinal}:${r.points}:${r.kind?.ordinal ?: -1}").append(';')
         val m = lastMove
         append(if (m == null) "-" else "${m.player}:${m.tile.id}:${m.side.ordinal}")
+        append(';').append(if (buying) 1 else 0)
     }
 
     companion object {
         /** Distribui as pedras para [n] jogadores. [starterOverride] = quem começa (null = sorteio). */
-        fun deal(starterOverride: Int?, random: Random = Random.Default, n: Int = 2): Round {
+        fun deal(starterOverride: Int?, random: Random = Random.Default, n: Int = 2, buying: Boolean = true): Round {
             require(n in 2..4)
             val deck = Tile.ALL.shuffled(random).toMutableList()
             val hands = List(n) { p -> deck.subList(p * 7, p * 7 + 7).toMutableList() }
             val bone = deck.subList(n * 7, 28).toMutableList()
             // Quem começa é sorteado e joga a pedra que quiser.
             val starter = starterOverride ?: random.nextInt(n)
-            return Round(n, hands, ArrayDeque(), bone, starter, null, 0, null)
+            return Round(n, hands, ArrayDeque(), bone, starter, null, 0, null, buying)
         }
 
         private fun ids(s: String) = if (s.isEmpty()) mutableListOf() else s.split(',').map { Tile.byId(it.toInt()) }.toMutableList()
@@ -220,7 +223,8 @@ class Round private constructor(
             val result = if (p[i] == "-") null else p[i].split(':').map(String::toInt)
                 .let { RoundResult(it[0], EndReason.entries[it[1]], it[2], it.getOrNull(3)?.let(BatidaKind.entries::getOrNull)) }
             i++
-            val round = Round(n, hands, board, bone, current, opening, passes, result)
+            val buying = p.getOrNull(i + 1) != "0"
+            val round = Round(n, hands, board, bone, current, opening, passes, result, buying)
             if (p[i] != "-") {
                 val (pl, id, sd) = p[i].split(':').map(String::toInt)
                 round.lastMove = Move(pl, Tile.byId(id), Side.entries[sd])

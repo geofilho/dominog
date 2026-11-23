@@ -14,7 +14,7 @@ object Proto {
     const val PHOTO = "PHOTO"
     /** Escolha de parceiro (4 jogadores): PARTNER|idA|idB. */
     const val PARTNER = "PARTNER"
-    /** Convite para começar: INVITE|idDeQuemConvidou|pontosParaVencer (sobe e depois desce para todos). */
+    /** Convite para começar: INVITE|idDeQuemConvidou|pontosParaVencer|compra 1 ou 0 (sobe e depois desce para todos). */
     const val INVITE = "INVITE"
     /** Resposta ao convite: ANSWER|id|1 ou 0. */
     const val ANSWER = "ANSWER"

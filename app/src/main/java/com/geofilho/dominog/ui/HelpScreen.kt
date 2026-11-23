@@ -61,8 +61,15 @@ private fun helpBlocks(version: String): List<Block> {
                 "em JOGAR COM UM PARCEIRO NO MESMO APARELHO.",
         ),
         p(
-            "4. Partida até 5 pontos: cada toque muda a pontuação para vencer a partida: 3, 5 ou 10 pontos. " +
-                "A escolha fica salva e vale contra o computador, com o parceiro e nos convites que você faz pelo Bluetooth.",
+            "4. Configurações: abre uma página com estas opções. As escolhas ficam salvas e valem contra o computador, " +
+                "com o parceiro e nos convites que você faz pelo Bluetooth.\n" +
+                "- Partida até 5 pontos: cada toque muda a pontuação para vencer a partida: 3, 5 ou 10 pontos.\n" +
+                "- Comprar pedras: chave que vem ligada. Desligada, o jogo é sem compra: as pedras que sobram ficam " +
+                "dormindo e quem não tem pedra que encaixe passa a vez. Com 4 jogadores não há monte, então a chave não muda nada.\n" +
+                "- Silenciar sons do jogo: chave que cala os efeitos sonoros, como embaralhar, pedras, bipes, porta e " +
+                "aplausos, e também os avisos falados do modo parceiro para quem não usa leitor de tela. Com o leitor de tela " +
+                "ligado, as falas continuam.\n" +
+                "- Ver histórico dos jogos: mostra as partidas ganhas e perdidas contra o computador, no mesmo aparelho e pelo Bluetooth.",
         ),
         p("5. Como usar: abre este texto."),
         p(
@@ -75,10 +82,7 @@ private fun helpBlocks(version: String): List<Block> {
                 "ou compartilhado, para ajudar a resolver problemas.\n" +
                 "- Registrar o foco do TalkBack: chave que vem desligada. Ligada, o aplicativo anota para onde o foco do " +
                 "TalkBack vai, os toques e os momentos do jogo. Depois de jogar, toque em Ver relatório e compartilhe, " +
-                "para ajudar a resolver problemas. O botão Limpar relatório apaga o que foi anotado.\n" +
-                "- Silenciar sons do jogo: chave que cala os efeitos sonoros, como embaralhar, pedras, bipes, porta e " +
-                "aplausos, e também os avisos falados do modo parceiro para quem não usa leitor de tela. Com o leitor de tela " +
-                "ligado, as falas continuam. A escolha fica salva.",
+                "para ajudar a resolver problemas. O botão Limpar relatório apaga o que foi anotado.",
         ),
 
         p(
@@ -95,7 +99,7 @@ private fun helpBlocks(version: String): List<Block> {
         p("2. Resumo da mesa: por exemplo, \"Mesa com 2 pedras, ponta esquerda dois, ponta direita quatro\"."),
         p("3. Pedras da mesa: cada pedra é um elemento, da esquerda para a direita."),
         p("4. Adversário: quantas pedras restam na mão do computador ou do outro jogador."),
-        p("5. Monte: quantas pedras restam para comprar."),
+        p("5. Monte: quantas pedras restam para comprar. No jogo sem compra, quantas pedras estão dormindo."),
         p(
             "6. Suas pedras: o título, seguido de cada pedra sua, uma por elemento.\n" +
                 "- Tocando numa pedra, ela é jogada. Se encaixar nas duas pontas, abre uma janela perguntando ponta " +
@@ -185,8 +189,9 @@ private fun helpBlocks(version: String): List<Block> {
         ),
         p(
             "7. Qualquer um toca em Iniciar jogo e os outros tocam em Aceitar. A partida começa quando todos aceitam. " +
-                "Se alguém recusar, todos voltam para a sala. O botão Mudar pontos da partida alterna entre 3, 5 e 10 pontos; " +
-                "vale a pontuação de quem tocou em Iniciar jogo, e o convite avisa quantos pontos são.",
+                "Se alguém recusar, todos voltam para a sala. O botão Mudar pontos da partida alterna entre 3, 5 e 10 pontos, " +
+                "e a chave Comprar pedras liga ou desliga a compra (com 2 ou 3 jogadores). Valem as escolhas de quem tocou " +
+                "em Iniciar jogo, e o convite avisa quantos pontos são e se é com ou sem compra.",
         ),
         p(
             "8. Na tela do jogo, cada outro jogador aparece com quantas pedras tem, na ordem em que jogam. " +
@@ -218,6 +223,8 @@ private fun helpBlocks(version: String): List<Block> {
                 "- Contra o computador e pelo Bluetooth, quem começa a primeira rodada é sorteado e pode jogar qualquer " +
                 "pedra. Nas rodadas seguintes, começa quem venceu a anterior.\n" +
                 "- Sem pedra que encaixe, compra do monte; com o monte vazio (ou com 4 jogadores), passa a vez.\n" +
+                "- No jogo sem compra, escolhido nas Configurações, as pedras que sobram ficam dormindo e quem não tem " +
+                "pedra que encaixe passa a vez.\n" +
                 "- Com 4 jogadores, as duplas jogam alternadas: você, um adversário, seu parceiro, o outro adversário.\n" +
                 "- Bate quem jogar a última pedra. Se ninguém puder jogar, o jogo tranca e vence quem tiver menos pontos " +
                 "na mão; com 4 jogadores, vence a dupla desse jogador. Empate no jogo trancado não marca ponto.\n" +
