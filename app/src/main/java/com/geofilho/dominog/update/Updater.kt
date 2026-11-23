@@ -18,7 +18,8 @@ import java.net.URL
  * (tag "ultima-versao"), baixa o APK novo e abre o instalador do Android.
  */
 class Updater(private val context: Context) {
-    private val base = "https://github.com/geofilho/dominog/releases/download/ultima-versao/"
+    private val releases = "https://github.com/geofilho/dominog/releases/download"
+    private val base = "$releases/ultima-versao/"
 
     val installedVersion: Long
         get() = PackageInfoCompat.getLongVersionCode(
@@ -72,7 +73,11 @@ class Updater(private val context: Context) {
     suspend fun download(progress: (Int) -> Unit): File = withContext(Dispatchers.IO) {
         val dir = File(context.cacheDir, "updates").apply { mkdirs() }
         val file = File(dir, "DominoG.apk")
-        val c = open(base + "DominoG.apk")
+        // Baixa da cópia guardada da versão (v1.0.N), que nunca é apagada: assim o GitHub conta os
+        // downloads de cada versão. Se não der, usa o link da última versão.
+        val v = latestVersion()
+        val c = (if (v != null) runCatching { open("$releases/v1.0.$v/DominoG.apk") }.getOrNull() else null)
+            ?: open(base + "DominoG.apk")
         try {
             val total = c.contentLengthLong
             c.inputStream.use { input ->
