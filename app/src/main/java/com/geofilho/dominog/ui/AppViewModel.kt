@@ -444,6 +444,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
                 DiagLog.add("FOCO", "você passou: levar foco a Suas pedras")
                 startFocus++
             }
+            // Alguém passou: diz as pontas, para saber o que continua valendo na mesa.
+            if (!r.isOver && r.board.isNotEmpty()) sb.append("Ponta esquerda ${Words.n(r.leftEnd!!)}, ponta direita ${Words.n(r.rightEnd!!)}. ")
+            // O outro passou e voltou a sua vez: depois da fala, foco em Suas pedras (se tiver jogada).
+            if (before.current != me && r.current == me && mode != Mode.LOCAL && !r.isOver) handFocusAfterTurn = true
         }
         // Comprou e continua sem pedra que encaixe: avisa de novo e leva o foco ao botão.
         val myTurnNow = !r.isOver && r.current == me && (mode != Mode.LOCAL || revealed)
@@ -494,12 +498,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
         // Início da partida: o foco desce para "Suas pedras" quando for a sua vez, depois da fala.
         // Se outro começa, espera a jogada dele ser falada (senão o TalkBack cortaria a frase).
         if (newRound) startFocusPending = true
+        val handAfterPass = handFocusAfterTurn.also { handFocusAfterTurn = false }
         if (hint.isNotEmpty()) { startFocusPending = false; status = (status + hint).trim(); focusActionAfterSpeech() }
         else if (mine && startFocusPending) {
             startFocusPending = false
             voice.afterQueue { DiagLog.add("FOCO", "início da rodada: levar foco a Suas pedras"); startFocus++ }
+        } else if (mine && handAfterPass) {
+            voice.afterQueue { DiagLog.add("FOCO", "o outro passou: levar foco a Suas pedras"); startFocus++ }
         }
     }
+
+    /** O outro jogador passou e a vez voltou para você: levar o foco a "Suas pedras" depois da fala. */
+    private var handFocusAfterTurn = false
 
     /** O foco de início de rodada ainda não foi levado a "Suas pedras" (espera a sua vez). */
     private var startFocusPending = false
