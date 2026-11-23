@@ -49,11 +49,14 @@ object DiagLog {
     @Volatile var lastFocusAt = 0L; private set
     /** Hora (ms) da última vez que o foco saiu de um item. */
     @Volatile var lastClearAt = 0L; private set
+    /** Hora (ms) do último toque (duplo toque do TalkBack) em um item do app. */
+    @Volatile var lastClickAt = 0L; private set
 
     fun a11y(e: AccessibilityEvent) {
         when (e.eventType) {
             AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUSED -> lastFocusAt = android.os.SystemClock.uptimeMillis()
             AccessibilityEvent.TYPE_VIEW_ACCESSIBILITY_FOCUS_CLEARED -> lastClearAt = android.os.SystemClock.uptimeMillis()
+            AccessibilityEvent.TYPE_VIEW_CLICKED -> lastClickAt = android.os.SystemClock.uptimeMillis()
         }
         if (!enabled) return
         val type = when (e.eventType) {

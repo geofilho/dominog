@@ -531,6 +531,9 @@ private suspend fun focusNative(v: android.view.View, what: String): Boolean {
     var restores = 0
     while (now() - start < 3000 && restores < 4) {
         kotlinx.coroutines.delay(150)
+        // A pessoa tocou em algo (ex.: a pedra, que abre a escolha da ponta): o foco vai para outro
+        // lugar de propósito, não devolve.
+        if (log.lastClickAt >= start) { DiagLogBridge.add("$what: a pessoa tocou, paro de vigiar"); return true }
         if (isA11yFocused(v) || !v.isShown) continue
         val lostAt = now()
         kotlinx.coroutines.delay(350)
