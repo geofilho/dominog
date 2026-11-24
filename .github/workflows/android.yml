@@ -51,7 +51,8 @@ jobs:
           cp app/build/outputs/apk/release/app-release.apk DominoG.apk
           echo "$GITHUB_RUN_NUMBER" > version.txt
           # Novidades = todas as mudanças desde a versão publicada anterior (sem ajustes internos "Build:")
-          PREV=$(curl -sfL https://github.com/${{ github.repository }}/releases/download/ultima-versao/commit.txt || true)
+          PREV=$(curl -sfL https://github.com/geofilho/dominog-apk/releases/download/ultima-versao/commit.txt \
+            || curl -sfL https://github.com/${{ github.repository }}/releases/download/ultima-versao/commit.txt || true)
           if [ -n "$PREV" ] && git cat-file -e "$PREV^{commit}" 2>/dev/null; then RANGE="$PREV..HEAD"; else RANGE="-1"; fi
           git log $RANGE --no-merges --invert-grep --grep='^Build:' --pretty='%B' \
             | grep -v -E '^(Co-Authored-By|Claude-Session):' | sed 's/ *\[teste\]//' | cat -s > novidades.txt
@@ -122,3 +123,46 @@ jobs:
             echo "$tag apagada da página de versões"
           done
 
+      # ---------- Repositório público dos APKs (geofilho/dominog-apk) ----------
+      # O código pode ficar privado; os links de baixar e as atualizações do jogo usam o dominog-apk.
+      # A chave APK_REPO_TOKEN (segredo do repositório) permite publicar lá.
+      - name: Publicar teste no dominog-apk
+        if: steps.tipo.outputs.teste == '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: geofilho/dominog-apk
+          token: ${{ secrets.APK_REPO_TOKEN }}
+          tag_name: teste
+          name: Dominó G (teste, não oficial)
+          prerelease: true
+          make_latest: false
+          body: "APK de TESTE (versão 1.0.${{ github.run_number }}), ainda não publicado como oficial."
+          files: DominoG.apk
+      - name: Publicar última versão no dominog-apk
+        if: steps.tipo.outputs.teste != '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: geofilho/dominog-apk
+          token: ${{ secrets.APK_REPO_TOKEN }}
+          tag_name: ultima-versao
+          name: Dominó G (última versão)
+          prerelease: true
+          make_latest: false
+          body: "Arquivos usados pelo Verificar atualização do jogo. Para baixar, use a versão mais recente (Latest)."
+          files: |
+            DominoG.apk
+            version.txt
+            novidades.txt
+            commit.txt
+      - name: Guardar esta versão no dominog-apk
+        if: steps.tipo.outputs.teste != '1'
+        uses: softprops/action-gh-release@v2
+        with:
+          repository: geofilho/dominog-apk
+          token: ${{ secrets.APK_REPO_TOKEN }}
+          tag_name: v1.0.${{ github.run_number }}
+          name: Dominó G 1.0.${{ github.run_number }}
+          prerelease: false
+          make_latest: true
+          body_path: novidades.txt
+          files: DominoG.apk

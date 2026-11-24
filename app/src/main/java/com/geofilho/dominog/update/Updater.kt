@@ -18,7 +18,7 @@ import java.net.URL
  * (tag "ultima-versao"), baixa o APK novo e abre o instalador do Android.
  */
 class Updater(private val context: Context) {
-    private val releases = "https://github.com/geofilho/dominog/releases/download"
+    private val releases = "https://github.com/geofilho/dominog-apk/releases/download"
     private val base = "$releases/ultima-versao/"
 
     val installedVersion: Long

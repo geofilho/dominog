@@ -30,7 +30,7 @@ private sealed interface Block {
 }
 
 /** Leva sempre à versão mais nova (a cópia guardada dela, onde o GitHub conta os downloads). */
-private const val DOWNLOAD_LINK = "https://github.com/geofilho/dominog/releases/latest/download/DominoG.apk"
+private const val DOWNLOAD_LINK = "https://github.com/geofilho/dominog-apk/releases/latest/download/DominoG.apk"
 
 private fun helpBlocks(version: String): List<Block> {
     val t = Block::Title; val h = Block::Heading; val p = Block::Para
