@@ -1,5 +1,11 @@
 # Dominó G (Android)
 
+## Autoria e direitos autorais
+
+Este projeto é de autoria de **geofilho** ([github.com/geofilho](https://github.com/geofilho)). Todos os direitos são reservados (veja [LICENSE](LICENSE)).
+
+Você pode usar o projeto como inspiração para criar o seu próprio, com código, nome e identidade diferentes. Copiar, clonar ou republicar este app, mesmo trocando só nomes ou ícones, exige autorização do autor: [abra uma issue](https://github.com/geofilho/dominog/issues) para pedir.
+
 Jogo de dominó nativo (Kotlin + Jetpack Compose), para quem enxerga e adaptado para pessoas cegas
 (voz própria do app, sons de pedra e suporte ao TalkBack).
 
