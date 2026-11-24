@@ -56,7 +56,7 @@ jobs:
           if [ -n "$PREV" ] && git cat-file -e "$PREV^{commit}" 2>/dev/null; then RANGE="$PREV..HEAD"; else RANGE="-1"; fi
           git log $RANGE --no-merges --invert-grep --grep='^Build:' --pretty='%B' \
             | grep -v -E '^(Co-Authored-By|Claude-Session):' | sed 's/ *\[teste\]//' | cat -s > novidades.txt
-          [ -s novidades.txt ] || echo "Melhorias internas." > novidades.txt
+          [ -s novidades.txt ] || echo "Melhorias de desempenho." > novidades.txt
           git rev-parse HEAD > commit.txt
       # Commit com "[teste]" na mensagem: gera um APK de teste separado, sem publicar a versão oficial.
       - name: Tipo de publicação
