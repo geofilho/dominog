@@ -108,3 +108,17 @@ jobs:
           body_path: novidades.txt
           files: |
             DominoG.apk
+      # A página de versões fica só com as duas últimas versões numeradas (v1.0.N). As publicações
+      # fixas "ultima-versao" e "teste" não são apagadas.
+      - name: Manter só as duas últimas versões
+        if: steps.tipo.outputs.teste != '1'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 200 --json tagName -q '.[].tagName' |
+          grep -E '^v[0-9]' | sort -V -r | tail -n +3 |
+          while read -r tag; do
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --yes --cleanup-tag
+            echo "$tag apagada da página de versões"
+          done
+
