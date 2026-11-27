@@ -59,6 +59,11 @@ fun SettingsScreen(vm: AppViewModel) {
             detail = "Cala embaralhar, pedras, bipes, porta, aplausos e os avisos falados do modo parceiro. A fala do leitor de tela continua.",
             checked = vm.soundsMuted,
         ) { vm.changeSoundsMuted(it) }
+        SettingSwitch(
+            title = "Manter a tela ligada durante o jogo",
+            detail = "Ligada, a tela não apaga nem bloqueia enquanto você está na tela do jogo, mesmo esperando a jogada dos outros. Gasta mais bateria.",
+            checked = vm.keepScreenOn,
+        ) { vm.changeKeepScreenOn(it) }
         MenuButton("Ver histórico dos jogos", Palette.AreaBorder) { history = vm.allHistoryText() }
     }
 

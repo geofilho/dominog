@@ -75,6 +75,12 @@ fun GameScreen(vm: AppViewModel) {
     val screenReader = rememberScreenReaderOn()
     // Voltar do Android (botão, gesto padrão ou gesto de voltar do TalkBack): pergunta antes de sair.
     BackHandler { askExit() }
+    // Chave das Configurações: a tela não apaga enquanto a tela do jogo está aberta.
+    val hostView = androidx.compose.ui.platform.LocalView.current
+    androidx.compose.runtime.DisposableEffect(vm.keepScreenOn) {
+        hostView.keepScreenOn = vm.keepScreenOn
+        onDispose { hostView.keepScreenOn = false }
+    }
     // A rodada é um objeto mutável: [v] muda a cada jogada e é passado às partes da tela
     // para que o Compose as redesenhe (senão ele reaproveita o desenho antigo).
     val v = vm.version

@@ -73,6 +73,8 @@ private fun helpBlocks(version: String): List<Block> {
                 "- Silenciar sons do jogo: chave que cala os efeitos sonoros, como embaralhar, pedras, bipes, porta e " +
                 "aplausos, e também os avisos falados do modo parceiro para quem não usa leitor de tela. Com o leitor de tela " +
                 "ligado, as falas continuam.\n" +
+                "- Manter a tela ligada durante o jogo: chave que vem desligada. Ligada, a tela não apaga nem bloqueia " +
+                "enquanto a tela do jogo está aberta, mesmo esperando a jogada dos outros. Gasta mais bateria.\n" +
                 "- Ver histórico dos jogos: mostra as partidas ganhas e perdidas contra o computador, no mesmo aparelho e pelo Bluetooth.",
         ),
         p("6. Como usar: abre este texto."),

@@ -56,6 +56,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app), BtSession.Listener
     /** Chave "Silenciar sons do jogo" (Diagnóstico): cala os efeitos, mantém as falas. */
     var soundsMuted by mutableStateOf(prefs.getBoolean("sons_mudos", false)); private set
 
+    /** Chave "Manter a tela ligada durante o jogo" (Configurações): vem desligada. */
+    var keepScreenOn by mutableStateOf(prefs.getBoolean("tela_ligada", false)); private set
+
+    fun changeKeepScreenOn(on: Boolean) {
+        keepScreenOn = on
+        prefs.edit().putBoolean("tela_ligada", on).apply()
+        say(if (on) "A tela fica ligada durante o jogo" else "A tela apaga normalmente durante o jogo", flush = true)
+    }
+
     fun changeSoundsMuted(m: Boolean) {
         soundsMuted = m
         sfx.muted = m
